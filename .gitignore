@@ -1,0 +1,21 @@
+.env
+.env.*
+!.env.example
+private/
+node_modules/
+*.rollback
+.env.deploy
+docker-compose.yml.deploy
+.DS_Store
+
+# Ключи, локальные артефакты и настройки редакторов
+*.pem
+*.key
+*.log
+*.swp
+*~
+.idea/
+.vscode/
+coverage/
+test-results/
+playwright-report/

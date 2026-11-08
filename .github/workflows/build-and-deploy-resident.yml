@@ -1,0 +1,175 @@
+name: Resident CI/CD
+
+on:
+  pull_request:
+    branches:
+      - master
+  push:
+    branches:
+      - master
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+env:
+  IMAGE_NAME: dom-resident
+
+jobs:
+  test:
+    name: Test
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v6
+
+      - name: Set up Node
+        uses: actions/setup-node@v5
+        with:
+          node-version: 22
+
+      - name: Test
+        run: npm test
+
+  publish:
+    name: Build and publish image
+    if: vars.DEPLOY_ENABLED == 'true' && (github.event_name == 'push' || github.event_name == 'workflow_dispatch')
+    needs: test
+    runs-on: ubuntu-latest
+    outputs:
+      tag: ${{ steps.image.outputs.tag }}
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v6
+
+      - name: Set image tag
+        id: image
+        run: echo "tag=sha-${GITHUB_SHA}" >> "$GITHUB_OUTPUT"
+
+      - name: Log in to Docker Hub
+        uses: docker/login-action@v4
+        with:
+          username: ${{ secrets.DOCKER_USERNAME }}
+          password: ${{ secrets.DOCKER_TOKEN }}
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v4
+
+      - name: Build and push
+        uses: docker/build-push-action@v7
+        with:
+          context: .
+          platforms: linux/amd64
+          push: true
+          tags: |
+            ${{ secrets.DOCKER_USERNAME }}/${{ env.IMAGE_NAME }}:${{ steps.image.outputs.tag }}
+            ${{ secrets.DOCKER_USERNAME }}/${{ env.IMAGE_NAME }}:latest
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
+
+  deploy:
+    name: Deploy to Ubuntu server
+    if: vars.DEPLOY_ENABLED == 'true' && (github.event_name == 'push' || github.event_name == 'workflow_dispatch')
+    needs: publish
+    runs-on: ubuntu-latest
+    concurrency:
+      group: dom-resident-production
+      cancel-in-progress: false
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v6
+
+      - name: Prepare deployment files
+        env:
+          DOCKER_USERNAME: ${{ secrets.DOCKER_USERNAME }}
+          TAG: ${{ needs.publish.outputs.tag }}
+          RESIDENT_HOST: ${{ vars.RESIDENT_HOST }}
+          APP_NETWORK: ${{ vars.APP_NETWORK || 'app-network' }}
+          PROXY_NETWORK: ${{ vars.PROXY_NETWORK || 'proxy-network' }}
+          API_UPSTREAM: ${{ vars.API_UPSTREAM || 'backend:8080' }}
+        run: |
+          test -n "$RESIDENT_HOST" || { echo "Set repository variable RESIDENT_HOST"; exit 1; }
+          {
+            echo "DOCKER_USERNAME=$DOCKER_USERNAME"
+            echo "TAG=$TAG"
+            echo "RESIDENT_HOST=$RESIDENT_HOST"
+            echo "APP_NETWORK=$APP_NETWORK"
+            echo "PROXY_NETWORK=$PROXY_NETWORK"
+            echo "API_UPSTREAM=$API_UPSTREAM"
+          } > .env.deploy
+          cp docker-compose.yml docker-compose.yml.deploy
+
+      - name: Copy deployment files
+        uses: appleboy/scp-action@v1
+        with:
+          host: ${{ secrets.DEPLOY_HOST_IP }}
+          username: ${{ secrets.DEPLOY_HOST_USERNAME }}
+          port: ${{ secrets.DEPLOY_HOST_PORT }}
+          key: ${{ secrets.DEPLOY_HOST_KEY }}
+          source: ".env.deploy,docker-compose.yml.deploy"
+          target: ${{ secrets.DEPLOY_HOST_PROJECT_PATH }}
+
+      - name: Deploy and verify
+        uses: appleboy/ssh-action@v1.2.5
+        with:
+          host: ${{ secrets.DEPLOY_HOST_IP }}
+          username: ${{ secrets.DEPLOY_HOST_USERNAME }}
+          port: ${{ secrets.DEPLOY_HOST_PORT }}
+          key: ${{ secrets.DEPLOY_HOST_KEY }}
+          script: |
+            set -u
+            cd "${{ secrets.DEPLOY_HOST_PROJECT_PATH }}"
+            echo "${{ secrets.DOCKER_TOKEN }}" | docker login -u "${{ secrets.DOCKER_USERNAME }}" --password-stdin
+
+            # Сети уже должны существовать в окружении развёртывания.
+            app_network=$(sed -n 's/^APP_NETWORK=//p' .env.deploy)
+            proxy_network=$(sed -n 's/^PROXY_NETWORK=//p' .env.deploy)
+            docker network inspect "$app_network" >/dev/null 2>&1 || { echo "Application network is missing"; exit 1; }
+            docker network inspect "$proxy_network" >/dev/null 2>&1 || { echo "Proxy network is missing"; exit 1; }
+
+            had_previous=false
+            if [ -f .env ] && [ -f docker-compose.yml ]; then
+              cp .env .env.rollback
+              cp docker-compose.yml docker-compose.yml.rollback
+              had_previous=true
+            fi
+
+            mv .env.deploy .env
+            mv docker-compose.yml.deploy docker-compose.yml
+
+            deployment_ok=false
+            expected_image="${{ secrets.DOCKER_USERNAME }}/dom-resident:${{ needs.publish.outputs.tag }}"
+            if docker compose pull resident && docker compose up -d resident; then
+              attempt=1
+              while [ "$attempt" -le 30 ]; do
+                running_image=$(docker inspect --format '{{.Config.Image}}' dom-resident 2>/dev/null || true)
+                # /healthz идёт через прокси Caddy на API — проверка
+                # разом подтверждает, что жив и сам фронтенд, и путь до бэкенда.
+                if [ "$running_image" = "$expected_image" ] && \
+                   docker compose exec -T resident wget -q -O- http://127.0.0.1/healthz 2>/dev/null | grep -q '"status":"ok"'; then
+                  deployment_ok=true
+                  break
+                fi
+                sleep 2
+                attempt=$((attempt + 1))
+              done
+            fi
+
+            if [ "$deployment_ok" = true ]; then
+              rm -f .env.rollback docker-compose.yml.rollback
+              exit 0
+            fi
+
+            echo "Deployment health check failed; restoring previous version"
+            echo "Expected image: $expected_image"
+            docker compose ps
+            docker compose logs --tail 20 resident || true
+            if [ "$had_previous" = true ]; then
+              mv .env.rollback .env
+              mv docker-compose.yml.rollback docker-compose.yml
+              docker compose pull resident
+              docker compose up -d resident
+            else
+              docker compose down
+            fi
+            exit 1

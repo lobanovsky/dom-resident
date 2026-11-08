@@ -1,0 +1,36 @@
+name: dom-resident
+
+services:
+  resident:
+    image: ${DOCKER_USERNAME}/dom-resident:${TAG}
+    container_name: dom-resident
+    restart: unless-stopped
+    networks:
+      - app-network
+      - proxy
+    environment:
+      API_UPSTREAM: ${API_UPSTREAM:-backend:8080}
+    labels:
+      traefik.enable: "true"
+      # Указываем сеть, через которую прокси обращается к контейнеру.
+      traefik.docker.network: ${PROXY_NETWORK:-proxy-network}
+      # Домен задаётся в .env; сертификат выпускает существующий Traefik.
+      traefik.http.routers.dom-resident.rule: Host(`${RESIDENT_HOST:?Set RESIDENT_HOST}`)
+      traefik.http.routers.dom-resident.entrypoints: https
+      traefik.http.routers.dom-resident.tls.certresolver: letsEncrypt
+      traefik.http.routers.dom-resident.service: dom-resident
+      traefik.http.services.dom-resident.loadbalancer.server.port: "80"
+    logging:
+      driver: json-file
+      options:
+        max-size: "5m"
+        max-file: "1"
+
+# Внешние сети создаются в окружении развёртывания.
+networks:
+  proxy:
+    external: true
+    name: ${PROXY_NETWORK:-proxy-network}
+  app-network:
+    external: true
+    name: ${APP_NETWORK:-app-network}

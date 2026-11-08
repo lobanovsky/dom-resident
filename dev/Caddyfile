@@ -1,0 +1,15 @@
+http://localhost:3001 {
+	@backend path /api/v1/resident/* /healthz
+	handle @backend {
+		reverse_proxy 127.0.0.1:8080
+	}
+	handle /api/* {
+		respond 404
+	}
+	handle {
+		root * .
+		try_files {path} /index.html
+		file_server
+		header Cache-Control "no-store"
+	}
+}

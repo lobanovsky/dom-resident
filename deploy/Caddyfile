@@ -1,0 +1,45 @@
+{
+	auto_https off
+
+	# Перед Caddy стоит Traefik (TLS). Доверяем X-Forwarded-* из приватных
+	# сетей docker, иначе Caddy перезапишет X-Forwarded-Proto на "http" и
+	# бэкенд не поставит cookie сессии флаг Secure.
+	servers {
+		trusted_proxies static private_ranges
+	}
+}
+
+:80 {
+	# Фронтенд и API на одном origin: cookie dom_resident_session HttpOnly, CORS у
+	# бэкенда нет. Caddy проксирует API на dom-backend по внутренней сети.
+	@backend path /api/v1/resident/* /healthz
+	handle @backend {
+		reverse_proxy {$API_UPSTREAM:backend:8080}
+	}
+
+	handle /api/* {
+		respond 404
+	}
+
+	handle {
+		root * /usr/share/caddy
+
+		# SPA: прямой заход на клиентский маршрут (/premises/12) отдаёт
+		# index.html, существующие файлы — как есть.
+		try_files {path} /index.html
+		file_server
+
+		# index.html не кэшируем, чтобы после деплоя сразу подхватывались новые js/css.
+		@html path / /index.html
+		header @html Cache-Control "no-cache"
+	}
+
+	header {
+		X-Content-Type-Options nosniff
+		Referrer-Policy no-referrer
+		Content-Security-Policy "default-src 'self'; script-src 'self'; style-src 'self'; connect-src 'self'; img-src 'self'; object-src 'none'; base-uri 'none'; frame-ancestors 'none'; form-action 'self'"
+		X-Frame-Options DENY
+	}
+
+	encode gzip zstd
+}
