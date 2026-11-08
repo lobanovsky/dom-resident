@@ -88,6 +88,7 @@ jobs:
           PROXY_NETWORK: ${{ vars.PROXY_NETWORK || 'proxy-network' }}
           API_UPSTREAM: ${{ vars.API_UPSTREAM || 'backend:8080' }}
         run: |
+          umask 077
           test -n "$RESIDENT_HOST" || { echo "Set repository variable RESIDENT_HOST"; exit 1; }
           {
             echo "DOCKER_USERNAME=$DOCKER_USERNAME"
@@ -135,6 +136,7 @@ jobs:
             fi
 
             mv .env.deploy .env
+            chmod 600 .env
             mv docker-compose.yml.deploy docker-compose.yml
 
             deployment_ok=false
@@ -143,10 +145,10 @@ jobs:
               attempt=1
               while [ "$attempt" -le 30 ]; do
                 running_image=$(docker inspect --format '{{.Config.Image}}' dom-resident 2>/dev/null || true)
-                # /healthz идёт через прокси Caddy на API — проверка
-                # разом подтверждает, что жив и сам фронтенд, и путь до бэкенда.
+                # Проверяем статику и доступность именно API кабинета через прокси.
                 if [ "$running_image" = "$expected_image" ] && \
-                   docker compose exec -T resident wget -q -O- http://127.0.0.1/healthz 2>/dev/null | grep -q '"status":"ok"'; then
+                   docker compose exec -T resident wget -q -O /dev/null http://127.0.0.1/ && \
+                   docker compose exec -T resident wget -q -O- http://127.0.0.1/api/v1/resident/healthz 2>/dev/null | grep -q '"status":"ok"'; then
                   deployment_ok=true
                   break
                 fi

@@ -53,6 +53,6 @@ docker build -t dom-resident:local .
 
 Push в `master` и pull request запускают тесты. Публикация образа и SSH-деплой включаются переменной репозитория `DEPLOY_ENABLED=true` после настройки собственного окружения.
 
-Workflow использует secrets `DOCKER_USERNAME`, `DOCKER_TOKEN`, `DEPLOY_HOST_IP`, `DEPLOY_HOST_USERNAME`, `DEPLOY_HOST_PORT`, `DEPLOY_HOST_KEY`, `DEPLOY_HOST_PROJECT_PATH` и variables `RESIDENT_HOST`, `APP_NETWORK`, `PROXY_NETWORK`, `API_UPSTREAM`. Внешние сети и обратный прокси должны быть настроены заранее. При неудачной проверке доступности workflow восстанавливает предыдущую конфигурацию.
+Workflow использует secrets `DOCKER_USERNAME`, `DOCKER_TOKEN`, `DEPLOY_HOST_IP`, `DEPLOY_HOST_USERNAME`, `DEPLOY_HOST_PORT`, `DEPLOY_HOST_KEY`, `DEPLOY_HOST_PROJECT_PATH` и variables `RESIDENT_HOST`, `APP_NETWORK`, `PROXY_NETWORK`, `API_UPSTREAM`. Внешние сети и обратный прокси должны быть настроены заранее. Проверка после запуска подтверждает доступность HTML и API кабинета (`/api/v1/resident/healthz`) через прокси. При неудачной проверке workflow восстанавливает предыдущую конфигурацию.
 
 Реальные параметры окружения, ключи и внутренняя документация хранятся вне Git. `.env` и каталог `private/` исключены из репозитория и Docker-контекста.
