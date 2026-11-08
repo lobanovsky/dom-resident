@@ -23,3 +23,24 @@ test('текущее показание исключается из базы р�
   assert.deepEqual(previousValues(meter, [{ period: '2026-11-01', t1: 100 }, { period: '2026-10-01', t1: 80 }], '2026-11-01'), [80]);
   assert.deepEqual(previousValues(meter, [], '2026-11-01'), [5]);
 });
+
+import { windowMessage, buildBatch, propertyMeters, month } from './lib.js';
+test('календарь использует серверную дату, флаг включения и следующий приём', () => {
+  const w = { enabled: true, period: '2026-11-01', server_date: '2026-11-09', opens_on: '2026-11-17', closes_on: '2026-11-22', next_opens_on: '2026-11-17' };
+  assert.match(windowMessage(w), /откроется 17 ноября/);
+  assert.equal(windowOpen(w), false);
+  assert.equal(windowOpen({ ...w, server_date: '2026-11-17' }), true);
+  assert.equal(windowOpen({ ...w, server_date: '2026-11-22' }), true);
+  assert.equal(windowOpen({ ...w, server_date: '2026-11-23' }), false);
+  assert.equal(windowOpen({ ...w, enabled: false, server_date: '2026-11-20' }), false);
+  assert.match(windowMessage({ ...w, server_date: '2026-11-23', next_opens_on: '2026-12-17' }), /Следующий приём — 17 декабря/);
+  assert.equal(month('2026-11-01'), 'ноябрь 2026');
+});
+test('пакет пропускает пустые приборы, сохраняет нулевой расход и ревизию', () => {
+  const meter = { id: 1, coefficient: 1 };
+  const rows = buildBatch([{ meter, previous: [100], values: ['100'], comment: 'На даче', revision: 7 }, { meter: { id: 2 }, previous: [5], values: [''], comment: '' }], '2026-11-01');
+  assert.deepEqual(rows, [{ meter_id: 1, period: '2026-11-01', t1: 100, comment: 'На даче', revision: 7 }]);
+  assert.throws(() => buildBatch([{ meter, previous: [100, 5], values: ['101', ''] }], '2026-11-01'), (e) => e.meterId === 1);
+  assert.throws(() => buildBatch([{ meter, previous: [100], values: [''], comment: 'Есть комментарий' }], '2026-11-01'), (e) => e.meterId === 1);
+  assert.deepEqual(propertyMeters({ id: 8 }, [{ id: 1, premises_id: 9 }]), []);
+});

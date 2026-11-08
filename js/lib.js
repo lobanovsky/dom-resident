@@ -2,13 +2,40 @@ export const resources = { cold_water: 'Холодная вода', hot_water: '
 export const unit = (resource) => resource === 'electricity' ? 'кВт·ч' : 'м³';
 export const number = (n) => n == null ? '—' : new Intl.NumberFormat('ru-RU', { maximumFractionDigits: 3 }).format(n);
 export const date = (s) => s ? new Intl.DateTimeFormat('ru-RU', { timeZone: 'Europe/Moscow' }).format(new Date(s.length === 10 ? `${s}T12:00:00Z` : s)) : '—';
-export const month = (s) => s ? new Intl.DateTimeFormat('ru-RU', { month: 'long', year: 'numeric', timeZone: 'Europe/Moscow' }).format(new Date(`${s}T12:00:00Z`)) : '';
+export const month = (s) => s ? new Intl.DateTimeFormat('ru-RU', { month: 'long', timeZone: 'Europe/Moscow' }).format(new Date(`${s}T12:00:00Z`)) + ' ' + s.slice(0, 4) : '';
+export const shortDate = (s) => s ? new Intl.DateTimeFormat('ru-RU', { day: 'numeric', month: 'long', timeZone: 'Europe/Moscow' }).format(new Date(`${s}T12:00:00Z`)) : '';
+export const dateTime = (s) => s ? new Intl.DateTimeFormat('ru-RU', { dateStyle: 'short', timeStyle: 'short', timeZone: 'Europe/Moscow' }).format(new Date(s)) : '';
 export function today(now = new Date()) {
   const parts = new Intl.DateTimeFormat('en', { timeZone: 'Europe/Moscow', year: 'numeric', month: '2-digit', day: '2-digit' }).formatToParts(now);
   const get = (key) => parts.find((p) => p.type === key).value;
   return `${get('year')}-${get('month')}-${get('day')}`;
 }
-export const windowOpen = (w, day = today()) => !!w && day >= w.opens_on && day <= w.closes_on;
+export const windowOpen = (w, day = w?.server_date || today()) => !!w && w.enabled !== false && day >= w.opens_on && day <= w.closes_on;
+export function windowMessage(w) {
+  if (!w) return 'Приём показаний пока не настроен.';
+  if (windowOpen(w)) return `Приём за ${month(w.period)} до ${shortDate(w.closes_on)} включительно.`;
+  const day = w.server_date || today();
+  if (w.enabled && day < w.opens_on) return `Приём за ${month(w.period)} откроется ${shortDate(w.opens_on)}.`;
+  const closed = w.enabled ? `Приём за ${month(w.period)} завершён.` : 'Приём показаний отключён.';
+  return closed + (w.next_opens_on ? ` Следующий приём — ${shortDate(w.next_opens_on)}.` : ' Даты можно уточнить в ТСЖ.');
+}
+export function propertyMeters(property, meters) { return meters.filter((m) => m.premises_id === property.id); }
+export function buildBatch(entries, period) {
+  const readings = [];
+  for (const { meter, values, previous, comment, revision } of entries) {
+    if (values.every((v) => String(v).trim() === '')) {
+      if (String(comment || '').trim()) { const e = new Error('Чтобы передать комментарий, укажите показание или нажмите «Без изменений».'); e.meterId = meter.id; throw e; }
+      continue;
+    }
+    try {
+      const parsed = values.map(parseReading);
+      consumption(parsed, previous, meter.coefficient);
+      readings.push({ meter_id: meter.id, period, ...Object.fromEntries(parsed.map((v, i) => [`t${i + 1}`, v])), comment: String(comment || '').trim() || null, ...(revision != null ? { revision } : {}) });
+    } catch (e) { e.meterId = meter.id; throw e; }
+  }
+  if (!readings.length) throw new Error('Заполните показания хотя бы одного счётчика. Пустые поля не отправляются.');
+  return readings;
+}
 export function parseReading(value) {
   const s = String(value).trim().replace(',', '.');
   if (!/^\d+(?:\.\d{1,3})?$/.test(s)) throw new Error('Введите неотрицательное число, не более трёх знаков после запятой.');
@@ -36,6 +63,7 @@ const messages = {
   'email delivery is not configured; contact management': 'Регистрация по почте пока недоступна. Обратитесь в УК/ТСЖ.',
   'too many attempts; try later': 'Слишком много попыток. Повторите через 15 минут.',
   'period: only the open period is allowed': 'Передавать показания можно только за открытый месяц.',
+  'readings: duplicate meter': 'В отправке повторяется один и тот же счётчик.',
   'not found': 'Объект не найден или доступ к нему прекращён.',
   'current_password: is incorrect': 'Текущий пароль неверен.',
 };
