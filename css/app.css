@@ -90,6 +90,10 @@ summary { cursor: pointer; min-height: 30px; font-size: .85rem; padding: 4px 0; 
 .history-row p { margin: 0; }
 .audit-details { margin-top: 14px; }
 .reading-value { font-variant-numeric: tabular-nums; font-size: 1rem; margin-bottom: 7px; }
+.recent-consumption { display: grid; grid-template-columns: 1fr; gap: 7px; margin: 12px 0; font-size: .82rem; color: #344c40; }
+.recent-consumption > strong { color: var(--muted); font-weight: 500; }
+.recent-consumption-row { display: flex; justify-content: space-between; gap: 12px; font-variant-numeric: tabular-nums; }
+.recent-consumption-row strong { font-weight: 600; }
 .accepted { color: #43713f; font-size: .8rem; }
 .property-accepted { margin: 16px 0 0; }
 .reading-comment { font-size: .85rem; margin: 10px 0 0; }
