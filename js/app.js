@@ -53,7 +53,7 @@ function authPage(route) {
     card.append(form([
       field('Электронная почта', 'email', { type: 'email', required: true, autocomplete: 'username' }),
       field('Пароль', 'password', { type: 'password', required: true, autocomplete: 'current-password' }),
-    ], 'Войти', async (data) => { await api('/auth/login', { method: 'POST', body: data }); location.hash = 'home'; }), el('div', { class: 'auth-links' }, [link('Получить доступ', 'register'), link('Забыли пароль?', 'forgot')]));
+    ], 'Войти', async (data) => { await api('/auth/login', { method: 'POST', body: data }); location.hash = 'home'; }), el('div', { class: 'auth-links' }, [link('Получить доступ', 'register'), link('Забыли пароль?', 'forgot')]), el('p', { class: 'muted support-contact' }, ['Поддержка: ', el('a', { href: 'mailto:dom@mr17dom1.ru' }, 'dom@mr17dom1.ru')]));
   }
   root.replaceChildren(el('main', { class: 'auth-layout' }, card));
 }
@@ -123,7 +123,7 @@ function renderProfile(main, data) {
   const p = data.person;
   main.append(el('h1', {}, 'Профиль'), el('section', { class: 'profile-card' }, [definitions([
     ['ФИО', [p.last_name, p.first_name, p.middle_name].filter(Boolean).join(' ')], ['Дата рождения', p.birth_date ? date(p.birth_date) : null], ['Телефоны', (p.phones || []).join(', ')], ['Почта для входа', data.account.email], ['Другие адреса почты', (p.emails || []).filter((email) => email.toLowerCase() !== data.account.email.toLowerCase()).join(', ')],
-  ]), el('p', { class: 'muted' }, 'Для исправления персональных данных обратитесь в ТСЖ.')]), el('details', { class: 'password-details' }, [el('summary', {}, 'Изменить пароль'), form([
+  ]), el('p', { class: 'muted' }, ['Для исправления персональных данных обратитесь в ТСЖ. Поддержка: ', el('a', { href: 'mailto:dom@mr17dom1.ru' }, 'dom@mr17dom1.ru')])]), el('details', { class: 'password-details' }, [el('summary', {}, 'Изменить пароль'), form([
     field('Текущий пароль', 'current_password', { type: 'password', autocomplete: 'current-password', required: true }), ...passwordFields(),
   ], 'Изменить пароль', async (values) => {
     checkPasswords(values); await api('/auth/password', { method: 'PUT', body: { current_password: values.current_password, new_password: values.password } }); clearReadingDrafts(); location.hash = 'login';
