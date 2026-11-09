@@ -115,8 +115,8 @@ async function propertyReadings(property, allMeters, window) {
         const record = current || rows[0];
         const fallback = Object.fromEntries([1, 2, 3].map((i) => [`t${i}`, meter[`initial_t${i}`]]));
         row.append(el('p', { class: 'reading-value' }, `${valuesText(meter, record || fallback)} ${unit(meter.resource)}`));
-        if ((meter.resource === 'cold_water' || meter.resource === 'hot_water') && rows.length) {
-          const recent = el('div', { class: 'recent-consumption' }, [el('strong', {}, 'Расход за последние месяцы')]);
+        if (rows.length) {
+          const recent = el('div', { class: 'recent-consumption' }, [el('strong', {}, 'Потребление за последние месяцы')]);
           for (const r of rows.slice(0, 3)) {
             recent.append(el('div', { class: 'recent-consumption-row' }, [
               el('span', {}, month(r.period)),
