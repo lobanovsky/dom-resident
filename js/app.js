@@ -9,7 +9,7 @@ let shellEvents = null;
 let personId = null;
 
 function brand(route = 'home') {
-  return link([el('span', { class: 'brand-mark', 'aria-hidden': 'true' }, 'Д'), el('span', {}, 'Личный кабинет')], route, { class: 'brand' });
+  return link(el('span', {}, 'Личный кабинет ТСН "МР17дом1"'), route, { class: 'brand' });
 }
 function form(fields, label, save) {
   const status = el('div', { 'aria-live': 'polite' });
@@ -34,7 +34,7 @@ function authPage(route) {
   const token = new URLSearchParams(query).get('token');
   if (page === 'set-password' && token) history.replaceState(null, '', '#set-password');
   const titles = { login: 'Вход в личный кабинет', register: 'Получить доступ', forgot: 'Восстановить пароль', 'set-password': 'Установить пароль' };
-  const card = el('section', { class: 'auth-card' }, [brand(), el('h1', {}, titles[page] || titles.login)]);
+  const card = el('section', { class: 'auth-card' }, [brand(), ...(page === 'login' ? [] : [el('h1', {}, titles[page] || titles.login)])]);
   if (page === 'set-password') {
     if (!token) card.append(notice('Откройте ссылку из письма или запросите новую.'), link('Восстановить доступ', 'forgot'));
     else card.append(form(passwordFields(), 'Сохранить пароль', async (data) => {
@@ -76,7 +76,7 @@ function shell(page, data, hasMeters, defaultRoute) {
     try { await api('/auth/logout', { method: 'POST', body: {} }); clearReadingDrafts(); personId = null; location.hash = 'login'; }
     catch (e) { main.prepend(notice(errorMessage(e))); }
   }, 'text-button logout')]));
-  const container = el('div', { class: 'shell' }, [sidebar, backdrop, el('header', { class: 'mobile-header' }, [toggle, el('span', {}, 'Личный кабинет')]), main]);
+  const container = el('div', { class: 'shell' }, [sidebar, backdrop, el('header', { class: 'mobile-header' }, [toggle, el('span', {}, 'Личный кабинет ТСН "МР17дом1"')]), main]);
   function setOpen(value, restore = true) {
     open = value && mobile.matches;
     container.classList.toggle('menu-open', open); document.body.classList.toggle('menu-open', open);
