@@ -3,6 +3,8 @@ import assert from 'node:assert/strict';
 import { parseReading, consumption, windowOpen, today, previousValues } from './lib.js';
 test('показания: запятая, точность и запрет пустого значения', () => {
   assert.equal(parseReading('123,456'), 123.456);
+  assert.equal(parseReading('1 346.14'), 1346.14);
+  assert.equal(parseReading('1\u00a0346.14'), 1346.14);
   assert.equal(parseReading('0'), 0);
   for (const value of ['', '-1', '1.1234', '1e4', 'Infinity', '100000000000']) assert.throws(() => parseReading(value));
 });

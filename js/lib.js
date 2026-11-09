@@ -37,7 +37,7 @@ export function buildBatch(entries, period) {
   return readings;
 }
 export function parseReading(value) {
-  const s = String(value).trim().replace(',', '.');
+  const s = String(value).replace(/\s+/gu, '').replace(',', '.');
   if (!/^\d+(?:\.\d{1,3})?$/.test(s)) throw new Error('Введите неотрицательное число, не более трёх знаков после запятой.');
   const n = Number(s);
   if (!Number.isFinite(n) || n >= 100000000000) throw new Error('Значение слишком большое.');
