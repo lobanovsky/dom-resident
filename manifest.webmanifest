@@ -1,0 +1,28 @@
+{
+  "id": "/",
+  "name": "ТСН МР17дом1",
+  "short_name": "ТСН МР17дом1",
+  "description": "Личный кабинет жителя: недвижимость, счётчики и передача показаний",
+  "lang": "ru",
+  "dir": "ltr",
+  "start_url": "/",
+  "scope": "/",
+  "display": "standalone",
+  "background_color": "#f6f7f5",
+  "theme_color": "#173f38",
+  "prefer_related_applications": false,
+  "icons": [
+    {
+      "src": "/icons/icon-192.png",
+      "sizes": "192x192",
+      "type": "image/png",
+      "purpose": "any"
+    },
+    {
+      "src": "/icons/icon-512.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "any maskable"
+    }
+  ]
+}
