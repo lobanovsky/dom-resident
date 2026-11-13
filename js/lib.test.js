@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { parseReading, consumption, windowOpen, today, previousValues } from './lib.js';
+import { parseReading, consumption, windowOpen, today, previousValues, errorMessage } from './lib.js';
 test('показания: запятая, точность и запрет пустого значения', () => {
   assert.equal(parseReading('123,456'), 123.456);
   assert.equal(parseReading('1 346.14'), 1346.14);
@@ -45,4 +45,11 @@ test('пакет пропускает пустые приборы, сохран�
   assert.throws(() => buildBatch([{ meter, previous: [100, 5], values: ['101', ''] }], '2026-11-01'), (e) => e.meterId === 1);
   assert.throws(() => buildBatch([{ meter, previous: [100], values: [''], comment: 'Есть комментарий' }], '2026-11-01'), (e) => e.meterId === 1);
   assert.deepEqual(propertyMeters({ id: 8 }, [{ id: 1, premises_id: 9 }]), []);
+});
+
+
+test('ошибки заявки на въезд объясняют повтор, утрату права и формат телефона', () => {
+ assert.match(errorMessage(new Error('gate: duplicate request')), /уже есть заявка/);
+ assert.match(errorMessage(new Error('gate: property is not eligible')), /нет действующего права/);
+ assert.match(errorMessage(new Error('phone: gate phone must contain 11 to 15 digits')), /кодом страны/);
 });

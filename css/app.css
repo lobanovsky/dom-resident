@@ -151,3 +151,24 @@ summary { cursor: pointer; min-height: 30px; font-size: .85rem; padding: 4px 0; 
   .mobile-brand { flex: 1; min-width: 0; font-size: .8rem; line-height: 1.3; }
   .mobile-header .menu-toggle { flex: 0 0 40px; }
 }
+
+/* Заявки на въезд. */
+select { font: inherit; }
+.field select { width: 100%; min-height: 44px; padding: 10px 12px; border: 1px solid #c6d1c7; border-radius: 6px; background: white; color: #263e34; }
+.gate-heading, .gate-filters, .gate-actions { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 14px; }
+.gate-heading h1, .gate-heading h2 { margin: 0; }
+.gate-heading { margin-bottom: 18px; }
+.gate-filters { margin: 20px 0; }
+.gate-list { display: grid; gap: 18px; margin-bottom: 20px; }
+.gate-card { min-width: 0; overflow-wrap: anywhere; }
+.gate-card details { margin: 14px 0; }
+.gate-card p { white-space: pre-wrap; }
+.gate-status { padding: 5px 9px; border-radius: 6px; background: #edf0ec; color: #4d5c51; font-size: .8rem; }
+.gate-status-pending { background: #fff2d6; color: #735618; }
+.gate-status-approved { background: #e5f0e5; color: #234e41; }
+.gate-review-note { background: #f5f7f2; border-left: 3px solid #899d86; padding: 10px; }
+.gate-dialog { width: min(560px, calc(100% - 24px)); max-height: calc(100dvh - 32px); padding: 24px; border: 1px solid var(--line); border-radius: 12px; color: inherit; overflow: auto; }
+.gate-dialog::backdrop { background: #14282088; }
+.gate-extras .field { margin-top: 16px; }
+.gate-extras input[type=checkbox] { width: 20px; height: 20px; min-height: 20px; }
+@media (max-width: 760px) { .gate-dialog { padding: 18px; } .gate-heading h1 { font-size: 1.5rem; } }

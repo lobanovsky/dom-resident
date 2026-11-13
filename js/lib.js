@@ -54,6 +54,17 @@ export function consumption(values, previous, coefficient = 1) {
   });
 }
 const messages = {
+  'gate: property is not eligible': 'Для этого объекта нет действующего права выдавать доступ в выбранную зону.',
+  'gate: expiry is in the past': 'Дата окончания доступа уже прошла. Выберите сегодняшнюю или будущую дату.',
+  'gate: duplicate request': 'Для этого телефона и объекта уже есть заявка на проверке или одобренный доступ.',
+  'gate: request status changed': 'Статус заявки уже изменился. Обновите список.',
+  'gate: property or expiry is no longer eligible': 'Заявку нельзя одобрить: право собственности утрачено или срок доступа истёк.',
+  'gate: decision reason is required': 'Укажите причину отклонения или отзыва доступа.',
+  'gate: invalid decision note': 'Комментарий должен содержать не более 500 символов без служебных знаков.',
+  'gate: invalid action': 'Это действие недоступно для вашей роли.',
+  'phone: gate phone must contain 11 to 15 digits': 'Укажите телефон с кодом страны, например +7 999 123-45-67.',
+  'gate: invalid filters': 'Проверьте фильтры списка заявок.',
+
   'invalid credentials': 'Неверная почта или пароль либо доступ отключён.',
   'authentication required': 'Войдите в личный кабинет.',
   'invalid or expired link': 'Ссылка недействительна или срок её действия истёк. Запросите новую.',
@@ -68,6 +79,8 @@ const messages = {
   'current_password: is incorrect': 'Текущий пароль неверен.',
 };
 export function errorMessage(error) {
+  if (/gate text is too long/.test(error.message)) return 'Поле слишком длинное или содержит недопустимые символы.';
+  if (/recipient_name: is required/.test(error.message)) return 'Укажите имя получателя доступа.';
   if (messages[error.message]) return messages[error.message];
   if (/must not be less than previous reading/.test(error.message)) return 'Показание меньше предыдущего или начального значения.';
   if (/must not be greater than next reading/.test(error.message)) return 'Показание превышает более позднее значение. Обратитесь в УК/ТСЖ.';
