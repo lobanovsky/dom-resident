@@ -1,3 +1,4 @@
+import { groupGateRequests, formatGatePhone, bindGatePhone } from './gateForm.js';
 import { api } from './api.js';
 import { el, button, notice, field, definitions } from './dom.js';
 import { date, errorMessage } from './lib.js';
@@ -17,12 +18,13 @@ export const gateRelations = {
   relative: 'Родственник',
   tenant: 'Арендатор',
   guest: 'Гость',
-  service: 'Обслуживание / доставка',
 };
 export const gateZones = { courtyard: 'Двор', parking: 'Паркинг' };
 export const gatePropertyLabel = (p) =>
-  `${(p.kind || p.premises_kind) === 'parking_space' ? 'Машиноместо' : 'Квартира'} № ${p.number || p.premises_number}`;
-const phoneText = (value) => `+${value}`;
+  `${(p.kind || p.premises_kind) === 'parking_space' ? 'Машиноместо' : 'Квартира'} ${p.number || p.premises_number}`;
+const phoneText = (value) => (/^7\d{10}$/.test(value) ? formatGatePhone(value) : `+${value}`);
+const statusLabel = (value) =>
+  gateStatuses[value] || { partial: 'Частично действует', attention: 'Требует уточнения' }[value];
 function selectField(label, name, options) {
   const control = el(
     'select',
@@ -79,9 +81,10 @@ export async function renderGateAccess(main, me, signal) {
     more.disabled = true;
     more.hidden = true;
     try {
-      const { items } = await api(
+      const result = await api(
         `/gate-access?limit=50&offset=${offset}${status.control.value ? `&status=${encodeURIComponent(status.control.value)}` : ''}`,
       );
+      const items = groupGateRequests(result.items);
       if (request !== version || !main.isConnected) return;
       if (!append) list.replaceChildren();
       if (!items.length && !append) list.append(el('p', { class: 'empty-state' }, 'Заявок пока нет.'));
@@ -145,18 +148,29 @@ export async function renderGateAccess(main, me, signal) {
     return el('article', { class: 'property-card gate-card' }, [
       el('div', { class: 'gate-heading' }, [
         el('h2', {}, r.recipient_name),
-        el('span', { class: `gate-status gate-status-${r.effective_status}` }, gateStatuses[r.effective_status]),
+        el('span', { class: `gate-status gate-status-${r.effective_status}` }, statusLabel(r.effective_status)),
       ]),
       definitions([
         ['Телефон', phoneText(r.phone)],
-        ['Куда', gateZones[r.zone]],
-        ['Объект', gatePropertyLabel(r)],
-        ['Кем приходится', gateRelations[r.relation]],
+        ['Куда', [...new Set(r.items.map((item) => gateZones[item.zone]))].join(', ')],
+        [
+          'Объекты',
+          r.items
+            .map(
+              (item) =>
+                gatePropertyLabel(item) +
+                (r.effective_status === 'partial' || r.effective_status === 'attention'
+                  ? ` — ${statusLabel(item.effective_status)}`
+                  : ''),
+            )
+            .join(', '),
+        ],
+        ['Кем приходится', gateRelations[r.relation === 'service' ? 'guest' : r.relation]],
         ['Автомобиль', [r.vehicle_plate, r.vehicle_brand].filter(Boolean).join(' · ')],
-        ['Редкие заезды', r.occasional_vehicle ? 'Да (такси, доставка)' : null],
-        ['Срок', r.valid_until ? `до ${date(r.valid_until)} включительно` : 'Без ограничения'],
+        ['Личный автомобиль', r.no_personal_vehicle ? 'Нет' : null],
+        ['Редкие заезды', r.occasional_vehicle ? 'Да' : null],
+        ['Срок', r.valid_until ? `до ${date(r.valid_until)} включительно` : null],
       ]),
-      el('p', { class: 'muted' }, r.address),
       r.comment ? el('p', {}, r.comment) : null,
       r.review_note ? el('p', { class: 'gate-review-note' }, r.review_note) : null,
       r.effective_status === 'ineligible'
@@ -169,45 +183,76 @@ export async function renderGateAccess(main, me, signal) {
   }
   function openCreate(original = null) {
     if (!properties.length) return;
-    const availableZones = [...new Set(properties.map((p) => p.zone))];
-    const zone = selectField(
-      'Куда нужен доступ',
-      'zone',
-      availableZones.map((z) => [z, gateZones[z]]),
+    const selected = new Set(
+      original?.items?.map((r) => r.premises_id) ||
+        (original ? [original.premises_id] : properties.length === 1 ? [properties[0].id] : []),
     );
-    if (original && availableZones.includes(original.zone)) zone.control.value = original.zone;
-    const property = selectField('Объект недвижимости', 'premises_id', []);
-    const updateProperties = () => {
-      const choices = properties.filter((p) => p.zone === zone.control.value);
-      property.control.replaceChildren(
-        ...choices.map((p) => el('option', { value: p.id }, `${gatePropertyLabel(p)} · ${p.address}`)),
+    const choices = properties.map((p) => {
+      const control = el('input', { type: 'checkbox', name: 'premises_ids', value: p.id, checked: selected.has(p.id) });
+      return { control, node: el('label', { class: 'gate-choice' }, [control, el('span', {}, gatePropertyLabel(p))]) };
+    });
+    const validateProperties = () =>
+      choices[0].control.setCustomValidity(
+        choices.some((choice) => choice.control.checked) ? '' : 'Выберите хотя бы один объект недвижимости.',
       );
-      if (original && choices.some((p) => p.id === original.premises_id)) property.control.value = original.premises_id;
-      property.control.disabled = choices.length === 1;
-    };
-    zone.control.addEventListener('change', updateProperties);
-    updateProperties();
+    for (const choice of choices) choice.control.addEventListener('change', validateProperties);
+    validateProperties();
+    const propertyChoices = el('fieldset', { class: 'gate-choice-group' }, [
+      el('legend', {}, 'Объекты недвижимости'),
+      ...choices.map((choice) => choice.node),
+    ]);
     const phone = field('Телефон для доступа', 'phone', {
       type: 'tel',
       required: true,
       autocomplete: 'tel',
-      maxlength: 30,
+      maxlength: 18,
+      inputmode: 'tel',
+      pattern: '[+]7 [0-9]{3} [0-9]{3} [0-9]{2} [0-9]{2}',
       value: original?.phone || me.person.phones?.[0] || '',
-      placeholder: '+7 999 123-45-67',
+      placeholder: '+7 926 793 63 63',
     });
     const name = field('Имя получателя доступа', 'recipient_name', {
       required: true,
       maxlength: 120,
       value: original?.recipient_name || [me.person.first_name, me.person.last_name].filter(Boolean).join(' '),
     });
-    const relation = selectField('Кто будет пользоваться', 'relation', Object.entries(gateRelations));
-    relation.control.value = original?.relation || 'owner';
+    bindGatePhone(phone.control);
+    const relationValue = original?.relation === 'service' ? 'guest' : original?.relation || 'owner';
+    const relationOptions = [
+      ['owner', 'Собственник'],
+      ['tenant', 'Арендатор'],
+      ['relative', 'Родственник'],
+      ['guest', 'Гость'],
+    ];
+    const relation = el('fieldset', { class: 'gate-choice-group gate-relations' }, [
+      el('legend', {}, 'Кто будет пользоваться?'),
+      ...relationOptions.map(([value, title]) =>
+        el('label', { class: 'gate-choice' }, [
+          el('input', { type: 'radio', name: 'relation', value, checked: value === relationValue, required: true }),
+          el('span', {}, title),
+        ]),
+      ),
+    ]);
     const plate = field('Номер автомобиля', 'vehicle_plate', { maxlength: 24, value: original?.vehicle_plate || '' });
     const brand = field('Марка автомобиля', 'vehicle_brand', { maxlength: 80, value: original?.vehicle_brand || '' });
-    const occasional = field('Редкие заезды: такси, доставка и т. п.', 'occasional_vehicle', { type: 'checkbox' });
-    occasional.control.checked = original?.occasional_vehicle || false;
-    const until = field('Доступ до даты включительно (необязательно)', 'valid_until', { type: 'date' });
-    const comment = field('Комментарий для охраны (необязательно)', 'comment', { type: 'textarea', maxlength: 500 });
+    const noCar = el('input', {
+      type: 'checkbox',
+      name: 'no_personal_vehicle',
+      checked: original?.no_personal_vehicle || false,
+    });
+    const updateCar = () => {
+      plate.control.disabled = noCar.checked;
+      brand.control.disabled = noCar.checked;
+    };
+    noCar.addEventListener('change', updateCar);
+    updateCar();
+    const car = el('fieldset', { class: 'gate-choice-group' }, [
+      el('legend', {}, 'Автомобиль'),
+      plate.node,
+      brand.node,
+      el('label', { class: 'gate-choice' }, [noCar, el('span', {}, 'Нет личного автомобиля')]),
+    ]);
+    const comment = field('Комментарий для охраны', 'comment', { type: 'textarea', maxlength: 500 });
     const message = el('div', { 'aria-live': 'polite' });
     const submit = el('button', { type: 'submit', class: 'button' }, 'Отправить на проверку');
     const dialog = el('dialog', { class: 'gate-dialog', 'aria-labelledby': 'gate-dialog-title' });
@@ -232,18 +277,18 @@ export async function renderGateAccess(main, me, signal) {
           submit.disabled = true;
           message.replaceChildren();
           try {
-            await api('/gate-access', {
+            await api('/gate-access/batch', {
               method: 'POST',
               body: {
-                premises_id: Number(property.control.value),
-                zone: zone.control.value,
+                premises_ids: choices
+                  .filter((choice) => choice.control.checked)
+                  .map((choice) => Number(choice.control.value)),
                 phone: phone.control.value.trim(),
                 recipient_name: name.control.value.trim(),
-                relation: relation.control.value,
-                vehicle_plate: plate.control.value.trim(),
-                vehicle_brand: brand.control.value.trim(),
-                occasional_vehicle: occasional.control.checked,
-                valid_until: until.control.value || null,
+                relation: form.querySelector('input[name=relation]:checked').value,
+                vehicle_plate: noCar.checked ? '' : plate.control.value.trim(),
+                vehicle_brand: noCar.checked ? '' : brand.control.value.trim(),
+                no_personal_vehicle: noCar.checked,
                 comment: comment.control.value.trim(),
               },
             });
@@ -261,22 +306,12 @@ export async function renderGateAccess(main, me, signal) {
         },
       },
       [
-        zone.node,
-        property.node,
+        propertyChoices,
         phone.node,
         name.node,
-        relation.node,
-        el('details', { class: 'gate-extras' }, [
-          el('summary', {}, 'Автомобиль и редкие заезды (необязательно)'),
-          plate.node,
-          brand.node,
-          occasional.node,
-        ]),
-        el('details', { class: 'gate-extras' }, [
-          el('summary', {}, 'Срок и комментарий (необязательно)'),
-          until.node,
-          comment.node,
-        ]),
+        relation,
+        car,
+        comment.node,
         message,
         submit,
         button('Отмена', close, 'text-button'),

@@ -54,6 +54,8 @@ export function consumption(values, previous, coefficient = 1) {
   });
 }
 const messages = {
+  'premises_ids: select 1 to 50 properties': 'Выберите хотя бы один объект недвижимости (не более 50).',
+  'vehicle: car must be empty without a personal vehicle': 'При отметке «Нет личного автомобиля» номер и марка должны быть пустыми.',
   'gate: property is not eligible': 'Для этого объекта нет действующего права выдавать доступ в выбранную зону.',
   'gate: expiry is in the past': 'Дата окончания доступа уже прошла. Выберите сегодняшнюю или будущую дату.',
   'gate: duplicate request': 'Для этого телефона и объекта уже есть заявка на проверке или одобренный доступ.',

@@ -172,3 +172,11 @@ select { font: inherit; }
 .gate-extras .field { margin-top: 16px; }
 .gate-extras input[type=checkbox] { width: 20px; height: 20px; min-height: 20px; }
 @media (max-width: 760px) { .gate-dialog { padding: 18px; } .gate-heading h1 { font-size: 1.5rem; } }
+
+.gate-choice-group { display: grid; gap: 12px; margin: 0; padding: 0; border: 0; min-width: 0; }
+.gate-choice-group legend { margin-bottom: 10px; padding: 0; font-size: .9rem; font-weight: 600; }
+.gate-choice { display: flex; align-items: center; gap: 10px; min-height: 40px; font-size: .9rem; }
+.gate-choice input { flex: 0 0 20px; width: 20px; height: 20px; accent-color: var(--green); }
+.gate-relations { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+.gate-relations legend { float: none; }
+.gate-choice-group .field input:disabled { background: #f1f3ef; color: var(--muted); }
