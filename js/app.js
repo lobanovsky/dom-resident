@@ -2,6 +2,8 @@ import { api } from './api.js';
 import { el, link, button, notice, field, definitions } from './dom.js';
 import { renderReadings, clearReadingDrafts } from './readings.js';
 import { number, date, propertyMeters, errorMessage } from './lib.js';
+import { trackForm, markFormSaved } from './formState.js';
+import { updateControl } from './updateControl.js';
 
 const root = document.querySelector('#app');
 let generation = 0;
@@ -11,15 +13,17 @@ let personId = null;
 function brand(route = 'home') {
   return link(el('span', {}, 'Личный кабинет ТСН "МР17дом1"'), route, { class: 'brand' });
 }
+function authHeading() { return el('div', { class: 'auth-heading' }, [brand(), updateControl(shellEvents.signal)]); }
 function form(fields, label, save) {
   const status = el('div', { 'aria-live': 'polite' });
   const submit = el('button', { class: 'button', type: 'submit' }, label);
   const node = el('form', { class: 'form' }, [...fields.map((f) => f.node), status, submit]);
   let busy = false;
+  trackForm(node);
   node.addEventListener('submit', async (event) => {
     event.preventDefault(); if (busy) return; busy = true;
     submit.disabled = true; status.replaceChildren();
-    try { await save(Object.fromEntries(new FormData(node)), status); }
+    try { await save(Object.fromEntries(new FormData(node)), status); markFormSaved(node); }
     catch (e) { status.replaceChildren(notice(errorMessage(e))); }
     finally { busy = false; submit.disabled = false; }
   });
@@ -34,13 +38,13 @@ function authPage(route) {
   const token = new URLSearchParams(query).get('token');
   if (page === 'set-password' && token) history.replaceState(null, '', '#set-password');
   const titles = { login: 'Вход в личный кабинет', register: 'Получить доступ', forgot: 'Восстановить пароль', 'set-password': 'Установить пароль' };
-  const card = el('section', { class: 'auth-card' }, [brand(), ...(page === 'login' ? [] : [el('h1', {}, titles[page] || titles.login)])]);
+  const card = el('section', { class: 'auth-card' }, [authHeading(), ...(page === 'login' ? [] : [el('h1', {}, titles[page] || titles.login)])]);
   if (page === 'set-password') {
     if (!token) card.append(notice('Откройте ссылку из письма или запросите новую.'), link('Восстановить доступ', 'forgot'));
     else card.append(form(passwordFields(), 'Сохранить пароль', async (data) => {
       checkPasswords(data);
       await api('/auth/set-password', { method: 'POST', body: { token, password: data.password } });
-      card.replaceChildren(brand(), el('h1', {}, 'Пароль установлен'), link('Перейти ко входу', 'login', { class: 'button' }));
+      card.replaceChildren(authHeading(), el('h1', {}, 'Пароль установлен'), link('Перейти ко входу', 'login', { class: 'button' }));
     }));
   } else if (page === 'register' || page === 'forgot') {
     card.append(el('p', { class: 'muted' }, page === 'register' ? 'Укажите почту, подтверждённую в ТСЖ. На неё придёт ссылка для установки пароля.' : 'Укажите почту, с которой входите в кабинет.'), form([
@@ -60,6 +64,7 @@ function authPage(route) {
 
 function shell(page, data, hasMeters, defaultRoute) {
   const main = el('main', { class: 'main', id: 'main-content', tabindex: '-1' });
+  main.append(el('div', { class: 'desktop-actions' }, updateControl(shellEvents.signal)));
   const sidebar = el('aside', { class: 'sidebar', id: 'sidebar', 'aria-label': 'Основное меню' });
   const mobile = matchMedia('(max-width: 760px)');
   let open = false;
@@ -76,7 +81,7 @@ function shell(page, data, hasMeters, defaultRoute) {
     try { await api('/auth/logout', { method: 'POST', body: {} }); clearReadingDrafts(); personId = null; location.hash = 'login'; }
     catch (e) { main.prepend(notice(errorMessage(e))); }
   }, 'text-button logout')]));
-  const container = el('div', { class: 'shell' }, [sidebar, backdrop, el('header', { class: 'mobile-header' }, [toggle, el('span', {}, 'Личный кабинет ТСН "МР17дом1"')]), main]);
+  const container = el('div', { class: 'shell' }, [sidebar, backdrop, el('header', { class: 'mobile-header' }, [toggle, el('span', { class: 'mobile-brand' }, 'Личный кабинет ТСН "МР17дом1"'), updateControl(shellEvents.signal)]), main]);
   function setOpen(value, restore = true) {
     open = value && mobile.matches;
     container.classList.toggle('menu-open', open); document.body.classList.toggle('menu-open', open);
@@ -150,7 +155,7 @@ async function render() {
   } catch (e) {
     if (id !== generation) return;
     if (e.status === 401) { clearReadingDrafts(); personId = null; location.hash = 'login'; return; }
-    root.replaceChildren(el('main', { class: 'auth-card' }, [brand(), notice(errorMessage(e)), button('Повторить', render)]));
+    root.replaceChildren(el('main', { class: 'auth-card' }, [authHeading(), notice(errorMessage(e)), button('Повторить', render)]));
   }
 }
 window.addEventListener('hashchange', render);

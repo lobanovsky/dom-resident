@@ -1,4 +1,12 @@
+import { beginMutation } from './requestState.js';
+
 export async function api(path, { method = 'GET', body } = {}) {
+  const finish = ['GET', 'HEAD'].includes(method.toUpperCase()) ? () => {} : beginMutation();
+  try { return await request(path, { method, body }); }
+  finally { finish(); }
+}
+
+async function request(path, { method, body }) {
   let response;
   try {
     response = await fetch(`/api/v1/resident${path}`, { method, credentials: 'same-origin', headers: body ? { 'Content-Type': 'application/json' } : {}, body: body ? JSON.stringify(body) : undefined, cache: 'no-store' });

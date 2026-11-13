@@ -136,3 +136,18 @@ summary { cursor: pointer; min-height: 30px; font-size: .85rem; padding: 4px 0; 
   .auth-card { padding: 25px 20px; }
 }
 @media (prefers-reduced-motion: reduce) { * { transition: none !important; scroll-behavior: auto !important; } }
+
+/* Обновление занимает отдельное место в шапке, не перекрывая поля ввода. */
+.desktop-actions { display: flex; justify-content: flex-end; margin-bottom: 18px; }
+.auth-heading { display: flex; align-items: flex-start; justify-content: space-between; gap: 12px; margin-bottom: 24px; }
+.auth-heading .brand { margin-bottom: 0; }
+.update-control { position: relative; flex: 0 0 auto; }
+.update-button { min-height: 44px; padding: 8px 10px; border: 1px solid var(--line); border-radius: 7px; background: #fff; color: var(--green); font-size: .8rem; white-space: nowrap; cursor: pointer; }
+.update-button:hover { background: #f0f4ee; }
+.update-error { position: absolute; top: 100%; right: 0; z-index: 50; width: min(280px, 80vw); margin: 6px 0 0; padding: 12px; border: 1px solid #eed9c6; border-radius: 6px; background: #fff2e9; color: #85502c; font-size: .82rem; }
+.visually-hidden { position: absolute; width: 1px; height: 1px; overflow: hidden; clip-path: inset(50%); white-space: nowrap; }
+@media (max-width: 760px) {
+  .desktop-actions { display: none; }
+  .mobile-brand { flex: 1; min-width: 0; font-size: .8rem; line-height: 1.3; }
+  .mobile-header .menu-toggle { flex: 0 0 40px; }
+}

@@ -1,10 +1,14 @@
 import { api } from './api.js';
 import { el, button, notice, field, link } from './dom.js';
 import { meterIcon } from './meterIcon.js';
+import { hasDraftChanges } from './formState.js';
 import { resources, unit, number, date, dateTime, month, windowOpen, windowMessage, previousValues, consumption, parseReading, buildBatch, propertyMeters, errorMessage } from './lib.js';
 
 const drafts = new Map();
 export function clearReadingDrafts() { drafts.clear(); }
+export function hasReadingDraftChanges() {
+  return [...drafts.values()].some((state) => [...state.values.values()].some(hasDraftChanges));
+}
 const valuesText = (meter, record) => [1, 2, 3].slice(0, meter.tariffs).map((i) => `${meter.tariffs > 1 ? `Т${i}: ` : ''}${number(record?.[`t${i}`])}`).join(' / ');
 
 function history(meter, initial = []) {
@@ -88,7 +92,12 @@ async function propertyReadings(property, allMeters, window) {
       if (meter.verification_overdue) row.append(el('p', { class: 'inline-warning' }, 'Срок поверки истёк. Обратитесь в ТСЖ.'));
       if (editable) {
         let draft = state.values.get(meter.id);
-        if (!draft) { draft = { values: previous.map((_, i) => current?.[`t${i + 1}`] ?? ''), comment: current?.comment || '', commentOpen: !!current?.comment }; state.values.set(meter.id, draft); }
+        if (!draft) {
+          const values = previous.map((_, i) => current?.[`t${i + 1}`] ?? '');
+          const comment = current?.comment || '';
+          draft = { values, initialValues: [...values], comment, initialComment: comment, commentOpen: !!comment };
+          state.values.set(meter.id, draft);
+        }
         const inputs = draft.values.map((value, i) => field(meter.tariffs > 1 ? `Т${i + 1}, ${unit(meter.resource)}` : `Новое показание, ${unit(meter.resource)}`, `meter-${meter.id}-t${i + 1}`, {
           value, inputmode: 'decimal', autocomplete: 'off', 'aria-label': `${resources[meter.resource]}, счётчик ${meter.serial_number}, ${meter.tariffs > 1 ? `Т${i + 1}` : 'новое показание'}`,
         }));

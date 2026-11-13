@@ -32,6 +32,8 @@
 		# index.html не кэшируем, чтобы после деплоя сразу подхватывались новые js/css.
 		@html path / /index.html
 		header @html Cache-Control "no-cache"
+		@code path /js/* /css/*
+		header @code Cache-Control "no-cache"
 		@pwa path /manifest.webmanifest /sw.js /offline.html /icons/*
 		header @pwa Cache-Control "no-cache"
 		@manifest path /manifest.webmanifest
