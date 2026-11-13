@@ -59,9 +59,6 @@ export async function renderGateAccess(main, me, signal) {
   });
   main.append(
     el('div', { class: 'gate-heading' }, [el('h1', {}, 'Двор и паркинг'), create]),
-    notice(
-      'Заявку проверяет охрана. Одобрение пока фиксируется в кабинете; открытие ворот и шлагбаумов через систему ещё не подключено.',
-    ),
     el('p', { class: 'muted' }, 'Выдавайте доступ только нужным людям. Когда он больше не нужен — отзовите его здесь.'),
     el('div', { class: 'gate-filters' }, [status.node, refresh]),
     error,
