@@ -152,9 +152,11 @@ export async function renderGateAccess(main, me, signal) {
           el('h2', {}, r.recipient_name),
           el('span', { class: 'gate-relation' }, relation),
         ]),
-        el('span', { class: `gate-status gate-status-${r.display_status}` }, statusLabel(r.display_status)),
       ]),
-      el('div', { class: `gate-phone gate-phone-${r.display_status}` }, phoneText(r.phone)),
+      el('div', {
+        class: `gate-phone gate-phone-${r.display_status}`,
+        'aria-label': `${phoneText(r.phone)} · ${statusLabel(r.display_status)}`,
+      }, phoneText(r.phone)),
       el('div', { class: 'gate-card-content' }, [
         el('div', { class: 'gate-zones' }, [
           el('p', { class: 'gate-card-property' }, objectList),
