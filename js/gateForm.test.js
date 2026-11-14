@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { formatGatePhone, groupGateRequests, rejectedLast } from './gateForm.js';
+import { formatGatePhone, groupGateRequests, rejectedLast, ownersFirst } from './gateForm.js';
 
 test('маска российского телефона: ввод, вставка и ограничение длины', () => {
   assert.equal(formatGatePhone(''), '+7');
@@ -64,6 +64,16 @@ test('отклонённые заявки идут после ожидающих
     { id: 4, display_status: 'rejected' },
   ];
   assert.deepEqual(rejectedLast(rows).map((r) => r.id), [2, 3, 1, 4]);
+});
+
+test('заявки собственников идут первыми, сохраняя сортировку статусов внутри групп', () => {
+  const rows = [
+    { id: 1, relation: 'guest', display_status: 'approved' },
+    { id: 2, relation: 'owner', display_status: 'rejected' },
+    { id: 3, relation: 'owner', display_status: 'approved' },
+    { id: 4, relation: 'tenant', display_status: 'pending' },
+  ];
+  assert.deepEqual(ownersFirst(rejectedLast(rows)).map((row) => row.id), [3, 2, 1, 4]);
 });
 
 import { gateVehicles, gateVehicleLabel } from './gateForm.js';

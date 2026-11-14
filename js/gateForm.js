@@ -30,6 +30,10 @@ export function rejectedLast(groups) {
   return [...groups].sort((a, b) => Number(a.display_status === 'rejected') - Number(b.display_status === 'rejected'));
 }
 
+export function ownersFirst(groups) {
+  return [...groups].sort((a, b) => Number(b.relation === 'owner') - Number(a.relation === 'owner'));
+}
+
 export function formatGatePhone(value) {
   let digits = String(value || '').replace(/\D/g, '');
   if (

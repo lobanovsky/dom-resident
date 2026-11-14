@@ -6,6 +6,7 @@ import {
   gateVehicles,
   gateVehicleLabel,
   rejectedLast,
+  ownersFirst,
 } from './gateForm.js';
 import { api } from './api.js';
 import { el, button, notice, field, definitions } from './dom.js';
@@ -86,7 +87,7 @@ export async function renderGateAccess(main, me, signal) {
       if (request !== version || !main.isConnected) return;
       if (!append) loadedGroups = [];
       loadedGroups.push(...items);
-      const ordered = rejectedLast(loadedGroups);
+      const ordered = ownersFirst(rejectedLast(loadedGroups));
       const courtyard = ordered.filter((group) => group.items.some((item) => item.zone === 'courtyard'));
       const parking = ordered.filter((group) => group.items.some((item) => item.zone === 'parking'));
       const sections = [
