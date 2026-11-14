@@ -1,4 +1,4 @@
-import { groupGateRequests, formatGatePhone, bindGatePhone } from './gateForm.js';
+import { groupGateRequests, formatGatePhone, bindGatePhone, gateAccessNote } from './gateForm.js';
 import { api } from './api.js';
 import { el, button, notice, field, definitions } from './dom.js';
 import { date, errorMessage } from './lib.js';
@@ -8,10 +8,6 @@ export const gateStatuses = {
   pending: 'На проверке',
   approved: 'Одобрено',
   rejected: 'Отклонено',
-  revoked: 'Отозвано',
-  cancelled: 'Отменено',
-  expired: 'Истёк срок',
-  ineligible: 'Нет права на объект',
 };
 export const gateRelations = {
   owner: 'Собственник',
@@ -23,8 +19,7 @@ export const gateZones = { courtyard: 'Двор', parking: 'Паркинг' };
 export const gatePropertyLabel = (p) =>
   `${(p.kind || p.premises_kind) === 'parking_space' ? 'Машиноместо' : 'Квартира'} ${p.number || p.premises_number}`;
 const phoneText = (value) => (/^7\d{10}$/.test(value) ? formatGatePhone(value) : `+${value}`);
-const statusLabel = (value) =>
-  gateStatuses[value] || { partial: 'Частично действует', attention: 'Требует уточнения' }[value];
+const statusLabel = (value) => gateStatuses[value];
 function selectField(label, name, options) {
   const control = el(
     'select',
@@ -82,7 +77,7 @@ export async function renderGateAccess(main, me, signal) {
     more.hidden = true;
     try {
       const result = await api(
-        `/gate-access?limit=50&offset=${offset}${status.control.value ? `&status=${encodeURIComponent(status.control.value)}` : ''}`,
+        `/gate-access?limit=50&offset=${offset}${status.control.value ? `&display_status=${encodeURIComponent(status.control.value)}` : ''}`,
       );
       const items = groupGateRequests(result.items);
       if (request !== version || !main.isConnected) return;
@@ -148,7 +143,7 @@ export async function renderGateAccess(main, me, signal) {
     return el('article', { class: 'property-card gate-card' }, [
       el('div', { class: 'gate-heading' }, [
         el('h2', {}, r.recipient_name),
-        el('span', { class: `gate-status gate-status-${r.effective_status}` }, statusLabel(r.effective_status)),
+        el('span', { class: `gate-status gate-status-${r.display_status}` }, statusLabel(r.display_status)),
       ]),
       definitions([
         ['Телефон', phoneText(r.phone)],
@@ -160,7 +155,9 @@ export async function renderGateAccess(main, me, signal) {
               (item) =>
                 gatePropertyLabel(item) +
                 (r.effective_status === 'partial' || r.effective_status === 'attention'
-                  ? ` — ${statusLabel(item.effective_status)}`
+                  ? gateAccessNote(item)
+                    ? ` — ${gateAccessNote(item)}`
+                    : ''
                   : ''),
             )
             .join(', '),
@@ -173,8 +170,10 @@ export async function renderGateAccess(main, me, signal) {
       ]),
       r.comment ? el('p', {}, r.comment) : null,
       r.review_note ? el('p', { class: 'gate-review-note' }, r.review_note) : null,
-      r.effective_status === 'ineligible'
-        ? notice('Право собственности на этот объект больше не подтверждено. Доступ не действует.')
+      r.items.some((item) => gateAccessNote(item)) &&
+      r.effective_status !== 'partial' &&
+      r.effective_status !== 'attention'
+        ? el('p', { class: 'muted' }, [...new Set(r.items.map(gateAccessNote).filter(Boolean))].join(' '))
         : null,
       history,
       message,

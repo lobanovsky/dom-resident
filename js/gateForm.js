@@ -15,6 +15,11 @@ export function groupGateRequests(rows) {
       id,
       items,
       active,
+      display_status: active
+        ? 'approved'
+        : items.every((r) => (r.status || r.effective_status) === 'pending')
+          ? 'pending'
+          : 'rejected',
       eligible: items.every((r) => r.eligible),
       effective_status: states.size === 1 ? root.effective_status : active ? 'partial' : 'attention',
     };
@@ -58,7 +63,8 @@ export function bindGatePhone(input) {
   };
   input.addEventListener('input', update);
   input.addEventListener('beforeinput', (e) => {
-    if (e.inputType.startsWith('insert') && input.selectionStart < 2) input.setSelectionRange(2, Math.max(2, input.selectionEnd));
+    if (e.inputType.startsWith('insert') && input.selectionStart < 2)
+      input.setSelectionRange(2, Math.max(2, input.selectionEnd));
     if (!e.inputType.startsWith('delete') || input.selectionStart !== input.selectionEnd) return;
     const cursor = input.selectionStart;
     if (e.inputType === 'deleteContentBackward' && cursor <= 2) {
@@ -96,4 +102,15 @@ export function bindGatePhone(input) {
       input.dispatchEvent(new Event('input', { bubbles: true }));
     }
   });
+}
+
+export function gateAccessNote(row) {
+  return (
+    {
+      revoked: 'Доступ отозван.',
+      cancelled: 'Заявка отменена заявителем.',
+      expired: 'Срок доступа истёк.',
+      ineligible: 'Право на объект не подтверждено.',
+    }[row.effective_status] || ''
+  );
 }
