@@ -5,6 +5,7 @@ import {
   gateAccessNote,
   gateVehicles,
   gateVehicleLabel,
+  rejectedLast,
 } from './gateForm.js';
 import { api } from './api.js';
 import { el, button, notice, field, definitions } from './dom.js';
@@ -22,7 +23,6 @@ export const gateRelations = {
   tenant: 'Арендатор',
   guest: 'Гость',
 };
-export const gateZones = { courtyard: 'Двор', parking: 'Паркинг' };
 export const gatePropertyLabel = (p) =>
   `${{ parking_space: 'Машиноместо', commercial: 'Коммерческое помещение' }[p.kind || p.premises_kind] || 'Квартира'} ${p.number || p.premises_number}`;
 const phoneText = (value) => (/^7\d{10}$/.test(value) ? formatGatePhone(value) : `+${value}`);
@@ -30,7 +30,8 @@ const statusLabel = (value) => gateStatuses[value];
 export async function renderGateAccess(main, me, signal) {
   let properties = [],
     offset = 0,
-    version = 0;
+    version = 0,
+    loadedGroups = [];
   const includeRejected = el('input',{type:'checkbox','aria-label':'Показать отклонённые'});
   const rejectedFilter = el('label',{class:'gate-rejected-filter'},[includeRejected,el('span',{},'Показать отклонённые')]);
   const list = el('div', { class: 'gate-list' });
@@ -83,9 +84,10 @@ export async function renderGateAccess(main, me, signal) {
       );
       const items = groupGateRequests(result.items);
       if (request !== version || !main.isConnected) return;
-      if (!append) list.replaceChildren();
-      if (!items.length && !append) list.append(el('p', { class: 'empty-state' }, 'Заявок пока нет.'));
-      list.append(...items.map(card));
+      if (!append) loadedGroups = [];
+      loadedGroups.push(...items);
+      const ordered = rejectedLast(loadedGroups);
+      list.replaceChildren(...(ordered.length ? ordered.map(card) : [el('p', { class: 'empty-state' }, 'Заявок пока нет.')]));
       more.hidden = items.length < 50;
     } catch (e) {
       error.replaceChildren(notice(errorMessage(e)));
@@ -94,27 +96,6 @@ export async function renderGateAccess(main, me, signal) {
     }
   }
   function card(r) {
-    const history = el('details', {}, el('summary', {}, 'История заявки'));
-    let loaded = false;
-    history.addEventListener('toggle', async () => {
-      if (!history.open || loaded) return;
-      loaded = true;
-      try {
-        const { items } = await api(`/gate-access/${r.id}/events`);
-        history.append(
-          ...items.map((e) =>
-            el(
-              'p',
-              { class: 'muted' },
-              `${new Date(e.created_at).toLocaleString('ru-RU', { timeZone: 'Europe/Moscow' })} · ${{ submitted: 'Заявка подана', approved: 'Одобрено', rejected: 'Отклонено', revoked: 'Отозвано', cancelled: 'Отменено' }[e.action]} · ${e.actor_role === 'resident' ? 'Собственник' : 'Охрана / администрация'}${e.note ? `: ${e.note}` : ''}`,
-            ),
-          ),
-        );
-      } catch (e) {
-        loaded = false;
-        history.append(notice(errorMessage(e)));
-      }
-    });
     const message = el('div', { 'aria-live': 'polite' });
     const actions = [];
     for (const [action, label] of r.status === 'pending'
@@ -142,33 +123,43 @@ export async function renderGateAccess(main, me, signal) {
     }
     if (!['pending', 'approved'].includes(r.effective_status))
       actions.push(button('Новая заявка на основе этой', () => openCreate(r), 'text-button'));
+    const relation = gateRelations[r.relation === 'service' ? 'guest' : r.relation];
+    const zones = [
+      { zone: 'courtyard', icon: '🏠', label: 'Двор' },
+      { zone: 'parking', icon: '🅿️', label: 'Паркинг' },
+    ].map(({ zone, icon, label }) => {
+      const items = r.items.filter((item) => item.zone === zone);
+      if (!items.length) return null;
+      return el('div', { class: 'gate-zone-group' }, [
+        el('h3', {}, [el('span', { 'aria-hidden': 'true' }, icon), label]),
+        el(
+          'p',
+          {},
+          items
+            .map((item) => {
+              const note = ['partial', 'attention'].includes(r.effective_status) ? gateAccessNote(item) : '';
+              return gatePropertyLabel(item) + (note ? ` — ${note}` : '');
+            })
+            .join(', '),
+        ),
+      ]);
+    }).filter(Boolean);
     return el('article', { class: 'property-card gate-card' }, [
       el('div', { class: 'gate-heading' }, [
-        el('h2', {}, r.recipient_name),
+        el('div', { class: 'gate-card-person' }, [
+          el('h2', {}, r.recipient_name),
+          el('span', { class: 'gate-relation' }, relation),
+        ]),
         el('span', { class: `gate-status gate-status-${r.display_status}` }, statusLabel(r.display_status)),
       ]),
-      definitions([
-        ['Телефон', phoneText(r.phone)],
-        ['Куда', [...new Set(r.items.map((item) => gateZones[item.zone]))].join(', ')],
-        [
-          'Объекты',
-          r.items
-            .map(
-              (item) =>
-                gatePropertyLabel(item) +
-                (r.effective_status === 'partial' || r.effective_status === 'attention'
-                  ? gateAccessNote(item)
-                    ? ` — ${gateAccessNote(item)}`
-                    : ''
-                  : ''),
-            )
-            .join(', '),
-        ],
-        ['Кем приходится', gateRelations[r.relation === 'service' ? 'guest' : r.relation]],
-        ['Автомобили', gateVehicles(r).map(gateVehicleLabel).join('; ')],
-        ['Личный автомобиль', r.no_personal_vehicle ? 'Нет' : null],
-        ['Редкие заезды', r.occasional_vehicle ? 'Да' : null],
-        ['Срок', r.valid_until ? `до ${date(r.valid_until)} включительно` : null],
+      el('div', { class: 'gate-card-content' }, [
+        el('div', { class: 'gate-zones' }, zones),
+        definitions([
+          ['Телефон', phoneText(r.phone)],
+          ['Автомобили', gateVehicles(r).map(gateVehicleLabel).join('; ')],
+          ['Редкие заезды', r.occasional_vehicle ? 'Да' : null],
+          ['Срок', r.valid_until ? `до ${date(r.valid_until)} включительно` : null],
+        ]),
       ]),
       gateVehicles(r, false).length
         ? el('details', {}, [
@@ -176,14 +167,6 @@ export async function renderGateAccess(main, me, signal) {
             el('p', { class: 'muted' }, gateVehicles(r, false).map(gateVehicleLabel).join('; ')),
           ])
         : null,
-      r.comment ? el('p', {}, r.comment) : null,
-      r.review_note ? el('p', { class: 'gate-review-note' }, r.review_note) : null,
-      r.items.some((item) => gateAccessNote(item)) &&
-      r.effective_status !== 'partial' &&
-      r.effective_status !== 'attention'
-        ? el('p', { class: 'muted' }, [...new Set(r.items.map(gateAccessNote).filter(Boolean))].join(' '))
-        : null,
-      history,
       message,
       el('div', { class: 'gate-actions' }, actions),
     ]);

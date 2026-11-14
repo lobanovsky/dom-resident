@@ -26,6 +26,10 @@ export function groupGateRequests(rows) {
   });
 }
 
+export function rejectedLast(groups) {
+  return [...groups].sort((a, b) => Number(a.display_status === 'rejected') - Number(b.display_status === 'rejected'));
+}
+
 export function formatGatePhone(value) {
   let digits = String(value || '').replace(/\D/g, '');
   if (

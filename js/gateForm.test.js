@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { formatGatePhone, groupGateRequests } from './gateForm.js';
+import { formatGatePhone, groupGateRequests, rejectedLast } from './gateForm.js';
 
 test('маска российского телефона: ввод, вставка и ограничение длины', () => {
   assert.equal(formatGatePhone(''), '+7');
@@ -54,6 +54,16 @@ test('ожидающая заявка сохраняет проверку даж
       .display_status,
     'pending',
   );
+});
+
+test('отклонённые заявки идут после ожидающих и одобренных', () => {
+  const rows = [
+    { id: 1, display_status: 'rejected' },
+    { id: 2, display_status: 'approved' },
+    { id: 3, display_status: 'pending' },
+    { id: 4, display_status: 'rejected' },
+  ];
+  assert.deepEqual(rejectedLast(rows).map((r) => r.id), [2, 3, 1, 4]);
 });
 
 import { gateVehicles, gateVehicleLabel } from './gateForm.js';
