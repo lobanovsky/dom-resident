@@ -27,19 +27,12 @@ export const gatePropertyLabel = (p) =>
   `${{ parking_space: 'Машиноместо', commercial: 'Коммерческое помещение' }[p.kind || p.premises_kind] || 'Квартира'} ${p.number || p.premises_number}`;
 const phoneText = (value) => (/^7\d{10}$/.test(value) ? formatGatePhone(value) : `+${value}`);
 const statusLabel = (value) => gateStatuses[value];
-function selectField(label, name, options) {
-  const control = el(
-    'select',
-    { name, required: true, 'aria-label': label },
-    options.map(([value, title]) => el('option', { value }, title)),
-  );
-  return { control, node: el('label', { class: 'field' }, [el('span', {}, label), control]) };
-}
 export async function renderGateAccess(main, me, signal) {
   let properties = [],
     offset = 0,
     version = 0;
-  const status = selectField('Показать', 'status', [['', 'Все заявки и доступы'], ...Object.entries(gateStatuses)]);
+  const includeRejected = el('input',{type:'checkbox','aria-label':'Показать отклонённые'});
+  const rejectedFilter = el('label',{class:'gate-rejected-filter'},[includeRejected,el('span',{},'Показать отклонённые')]);
   const list = el('div', { class: 'gate-list' });
   const error = el('div', { 'aria-live': 'polite' });
   const more = button('Показать ещё', () => {
@@ -57,14 +50,14 @@ export async function renderGateAccess(main, me, signal) {
     },
     'text-button',
   );
-  status.control.addEventListener('change', () => {
+  includeRejected.addEventListener('change', () => {
     offset = 0;
     load();
   });
   main.append(
     el('div', { class: 'gate-heading' }, [el('h1', {}, 'Двор и паркинг'), create]),
     el('p', { class: 'muted' }, 'Выдавайте доступ только нужным людям. Когда он больше не нужен — отзовите его здесь.'),
-    el('div', { class: 'gate-filters' }, [status.node, refresh]),
+    el('div', { class: 'gate-filters' }, [rejectedFilter, refresh]),
     error,
     list,
     more,
@@ -86,7 +79,7 @@ export async function renderGateAccess(main, me, signal) {
     more.hidden = true;
     try {
       const result = await api(
-        `/gate-access?limit=50&offset=${offset}${status.control.value ? `&display_status=${encodeURIComponent(status.control.value)}` : ''}`,
+        `/gate-access?limit=50&offset=${offset}${includeRejected.checked ? '&include_rejected=true' : ''}`,
       );
       const items = groupGateRequests(result.items);
       if (request !== version || !main.isConnected) return;

@@ -159,6 +159,8 @@ select { font: inherit; }
 .gate-heading h1, .gate-heading h2 { margin: 0; }
 .gate-heading { margin-bottom: 18px; }
 .gate-filters { margin: 20px 0; }
+.gate-rejected-filter { display: inline-flex; align-items: center; gap: 10px; min-height: 40px; cursor: pointer; }
+.gate-rejected-filter input { width: 20px; height: 20px; accent-color: var(--green); }
 .gate-list { display: grid; gap: 18px; margin-bottom: 20px; }
 .gate-card { min-width: 0; overflow-wrap: anywhere; }
 .gate-card details { margin: 14px 0; }
