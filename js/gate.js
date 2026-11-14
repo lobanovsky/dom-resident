@@ -87,7 +87,13 @@ export async function renderGateAccess(main, me, signal) {
       if (!append) loadedGroups = [];
       loadedGroups.push(...items);
       const ordered = rejectedLast(loadedGroups);
-      list.replaceChildren(...(ordered.length ? ordered.map(card) : [el('p', { class: 'empty-state' }, 'Заявок пока нет.')]));
+      const courtyard = ordered.filter((group) => group.items.some((item) => item.zone === 'courtyard'));
+      const parking = ordered.filter((group) => group.items.some((item) => item.zone === 'parking'));
+      const sections = [
+        zoneSection('courtyard', '🏠', 'Двор', courtyard),
+        zoneSection('parking', '🅿️', 'Паркинг', parking),
+      ].filter(Boolean);
+      list.replaceChildren(...(sections.length ? sections : [el('p', { class: 'empty-state' }, 'Заявок пока нет.')]));
       more.hidden = items.length < 50;
     } catch (e) {
       error.replaceChildren(notice(errorMessage(e)));
@@ -95,7 +101,15 @@ export async function renderGateAccess(main, me, signal) {
       more.disabled = false;
     }
   }
-  function card(r) {
+  function zoneSection(zone, icon, title, groups) {
+    if (!groups.length) return null;
+    return el('section', { class: 'gate-zone-section' }, [
+      el('h2', {}, [el('span', { 'aria-hidden': 'true' }, icon), title]),
+      el('div', { class: 'gate-list' }, groups.map((group) => card(group, zone))),
+    ]);
+  }
+
+  function card(r, zone) {
     const message = el('div', { 'aria-live': 'polite' });
     const actions = [];
     for (const [action, label] of r.status === 'pending'
@@ -121,29 +135,17 @@ export async function renderGateAccess(main, me, signal) {
       );
       actions.push(control);
     }
-    if (!['pending', 'approved'].includes(r.effective_status))
+    if (r.display_status === 'rejected')
       actions.push(button('Новая заявка на основе этой', () => openCreate(r), 'text-button'));
+    else if (['pending', 'approved'].includes(r.display_status))
+      actions.unshift(button('Изменить данные', () => openEdit(r), 'text-button'));
     const relation = gateRelations[r.relation === 'service' ? 'guest' : r.relation];
-    const zones = [
-      { zone: 'courtyard', icon: '🏠', label: 'Двор' },
-      { zone: 'parking', icon: '🅿️', label: 'Паркинг' },
-    ].map(({ zone, icon, label }) => {
-      const items = r.items.filter((item) => item.zone === zone);
-      if (!items.length) return null;
-      return el('div', { class: 'gate-zone-group' }, [
-        el('h3', {}, [el('span', { 'aria-hidden': 'true' }, icon), label]),
-        el(
-          'p',
-          {},
-          items
-            .map((item) => {
-              const note = ['partial', 'attention'].includes(r.effective_status) ? gateAccessNote(item) : '';
-              return gatePropertyLabel(item) + (note ? ` — ${note}` : '');
-            })
-            .join(', '),
-        ),
-      ]);
-    }).filter(Boolean);
+    const items = r.items.filter((item) => item.zone === zone);
+    const otherZoneItems = r.items.some((item) => item.zone !== zone);
+    const objectList = items.map((item) => {
+      const note = ['partial', 'attention'].includes(r.effective_status) ? gateAccessNote(item) : '';
+      return gatePropertyLabel(item) + (note ? ` — ${note}` : '');
+    }).join(', ');
     return el('article', { class: 'property-card gate-card' }, [
       el('div', { class: 'gate-heading' }, [
         el('div', { class: 'gate-card-person' }, [
@@ -153,7 +155,10 @@ export async function renderGateAccess(main, me, signal) {
         el('span', { class: `gate-status gate-status-${r.display_status}` }, statusLabel(r.display_status)),
       ]),
       el('div', { class: 'gate-card-content' }, [
-        el('div', { class: 'gate-zones' }, zones),
+        el('div', { class: 'gate-zones' }, [
+          el('p', {}, objectList),
+          otherZoneItems ? el('p', { class: 'muted' }, 'Заявка также включает объект другой зоны; действия относятся ко всей заявке.') : null,
+        ]),
         definitions([
           ['Телефон', phoneText(r.phone)],
           ['Автомобили', gateVehicles(r).map(gateVehicleLabel).join('; ')],
@@ -171,6 +176,105 @@ export async function renderGateAccess(main, me, signal) {
       el('div', { class: 'gate-actions' }, actions),
     ]);
   }
+
+  function openEdit(original) {
+    const name = field('Имя получателя доступа', 'recipient_name', {
+      required: true,
+      maxlength: 120,
+      value: original.recipient_name,
+    });
+    const relation = el('select', { name: 'relation', required: true, 'aria-label': 'Кто будет пользоваться' }, [
+      ['owner', 'Собственник'],
+      ['tenant', 'Арендатор'],
+      ['relative', 'Родственник'],
+      ['guest', 'Гость'],
+    ].map(([value, label]) =>
+      el('option', { value, selected: (original.relation === 'service' ? 'guest' : original.relation) === value }, label),
+    ));
+    const relationField = el('label', { class: 'field' }, [el('span', {}, 'Кто будет пользоваться?'), relation]);
+    const noCar = el('input', { type: 'checkbox', checked: !!original.no_personal_vehicle });
+    const carHost = el('div', { class: 'gate-car-rows' });
+    const carRows = [];
+    const message = el('div', { 'aria-live': 'polite' });
+    const submit = el('button', { type: 'submit', class: 'button' }, 'Сохранить');
+    let modal;
+    const updateCars = () => {
+      for (const row of carRows) {
+        row.plate.disabled = noCar.checked;
+        row.brand.disabled = noCar.checked;
+        row.remove.disabled = noCar.checked;
+        row.remove.hidden = carRows.length === 1;
+      }
+      addCar.disabled = noCar.checked || carRows.length >= 10;
+    };
+    const addVehicle = (vehicle = {}) => {
+      const plate = field('Номер автомобиля', 'vehicle_plate', { maxlength: 24, value: vehicle.plate_number || '' });
+      const brand = field('Марка автомобиля', 'vehicle_brand', { maxlength: 80, value: vehicle.brand || '' });
+      let node;
+      const remove = button('Удалить автомобиль', () => {
+        carRows.splice(carRows.findIndex((row) => row.node === node), 1);
+        node.remove();
+        updateCars();
+      }, 'text-button');
+      node = el('div', { class: 'gate-car-row' }, [plate.node, brand.node, remove]);
+      carRows.push({ node, plate: plate.control, brand: brand.control, remove });
+      carHost.append(node);
+      updateCars();
+    };
+    const addCar = button('Добавить автомобиль', () => addVehicle(), 'text-button');
+    const currentVehicles = gateVehicles(original);
+    for (const vehicle of currentVehicles.length ? currentVehicles : [{}]) addVehicle(vehicle);
+    noCar.addEventListener('change', updateCars);
+    const form = el('form', { class: 'form', onsubmit: async (event) => {
+      event.preventDefault();
+      if (!form.reportValidity()) return;
+      submit.disabled = true;
+      message.replaceChildren();
+      try {
+        await api(`/gate-access/${original.id}`, {
+          method: 'PUT',
+          body: {
+            recipient_name: name.control.value.trim(),
+            relation: relation.value,
+            vehicles: noCar.checked ? [] : carRows.map((row) => ({
+              plate_number: row.plate.value.trim(),
+              brand: row.brand.value.trim(),
+            })).filter((vehicle) => vehicle.plate_number || vehicle.brand),
+            no_personal_vehicle: noCar.checked,
+          },
+        });
+        markFormSaved(form);
+        modal.close();
+        offset = 0;
+        await load();
+      } catch (error) {
+        message.replaceChildren(notice(errorMessage(error)));
+      } finally {
+        submit.disabled = false;
+      }
+    } }, [
+      name.node,
+      relationField,
+      el('fieldset', { class: 'gate-choice-group' }, [
+        el('legend', {}, 'Автомобили'),
+        carHost,
+        addCar,
+        el('label', { class: 'gate-choice' }, [noCar, el('span', {}, 'Нет личного автомобиля')]),
+      ]),
+      message,
+      submit,
+    ]);
+    const dialog = el('dialog', { class: 'gate-dialog', 'aria-labelledby': 'gate-edit-title' }, [
+      el('h2', { id: 'gate-edit-title' }, 'Изменить данные заявки'),
+      form,
+    ]);
+    document.body.append(dialog);
+    dialog.showModal();
+    modal = { close: () => { dialog.close(); dialog.remove(); } };
+    form.append(button('Отмена', modal.close, 'text-button'));
+    trackForm(form);
+  }
+
   function openCreate(original = null) {
     if (!properties.length) return;
     const selected = new Set(

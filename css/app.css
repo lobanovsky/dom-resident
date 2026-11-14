@@ -162,6 +162,9 @@ select { font: inherit; }
 .gate-rejected-filter { display: inline-flex; align-items: center; gap: 10px; min-height: 40px; cursor: pointer; }
 .gate-rejected-filter input { width: 20px; height: 20px; accent-color: var(--green); }
 .gate-list { display: grid; gap: 18px; margin-bottom: 20px; }
+.gate-zone-section { display: grid; gap: 8px; }
+.gate-zone-section > h2 { display: flex; align-items: center; gap: 9px; margin: 0; }
+.gate-zone-section > h2 span { font-size: 1.1rem; }
 .gate-card { min-width: 0; overflow-wrap: anywhere; padding: 16px 18px; }
 .gate-card details { margin: 8px 0; }
 .gate-card p { white-space: pre-wrap; }
