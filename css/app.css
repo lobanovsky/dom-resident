@@ -171,7 +171,12 @@ select { font: inherit; }
 .gate-card-person { display: flex; align-items: baseline; flex-wrap: wrap; gap: 8px; }
 .gate-card-person h2 { margin: 0; font-weight: 700; }
 .gate-relation { color: var(--muted); font-size: .78rem; }
+.gate-phone { display: inline-flex; align-items: center; min-height: 42px; width: fit-content; max-width: 100%; margin-top: 10px; padding: 5px 12px; border: 2px solid; border-radius: 7px; font-size: 1rem; font-weight: 750; letter-spacing: .02em; }
+.gate-phone-approved { border-color: #49835a; background: #e8f3e8; color: #28583a; }
+.gate-phone-pending { border-color: #d8a52e; background: #fff6db; color: #705411; }
+.gate-phone-rejected { border-color: #c85d55; background: #fff0ee; color: #912e28; }
 .gate-card-content { display: grid; grid-template-columns: minmax(150px, .8fr) minmax(0, 1.2fr); gap: 18px; align-items: start; margin-top: 10px; }
+.gate-card-property { margin: 0; color: var(--muted); font-size: .8rem; line-height: 1.4; }
 .gate-zones { display: grid; gap: 9px; }
 .gate-zone-group h3 { display: flex; align-items: center; gap: 7px; margin: 0 0 3px; font-size: .82rem; }
 .gate-zone-group h3 span { font-size: 1rem; }

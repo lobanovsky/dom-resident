@@ -154,13 +154,13 @@ export async function renderGateAccess(main, me, signal) {
         ]),
         el('span', { class: `gate-status gate-status-${r.display_status}` }, statusLabel(r.display_status)),
       ]),
+      el('div', { class: `gate-phone gate-phone-${r.display_status}` }, phoneText(r.phone)),
       el('div', { class: 'gate-card-content' }, [
         el('div', { class: 'gate-zones' }, [
-          el('p', {}, objectList),
+          el('p', { class: 'gate-card-property' }, objectList),
           otherZoneItems ? el('p', { class: 'muted' }, 'Заявка также включает объект другой зоны; действия относятся ко всей заявке.') : null,
         ]),
         definitions([
-          ['Телефон', phoneText(r.phone)],
           ['Автомобили', gateVehicles(r).map(gateVehicleLabel).join('; ')],
           ['Редкие заезды', r.occasional_vehicle ? 'Да' : null],
           ['Срок', r.valid_until ? `до ${date(r.valid_until)} включительно` : null],

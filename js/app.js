@@ -11,6 +11,37 @@ let generation = 0;
 let shellEvents = null;
 let personId = null;
 
+function localizeValidation() {
+  const messageFor = (validity) => {
+    if (validity.valueMissing) return 'Заполните это поле.';
+    if (validity.typeMismatch) return 'Проверьте формат введённых данных.';
+    if (validity.patternMismatch) return 'Проверьте формат поля.';
+    if (validity.tooShort) return 'Введите больше символов.';
+    if (validity.tooLong) return 'Слишком длинное значение.';
+    if (validity.rangeUnderflow) return 'Значение меньше допустимого.';
+    if (validity.rangeOverflow) return 'Значение больше допустимого.';
+    if (validity.badInput) return 'Проверьте введённое значение.';
+    return 'Проверьте правильность заполнения поля.';
+  };
+  document.addEventListener('invalid', (event) => {
+    const control = event.target;
+    if (!control.validity.customError) {
+      control.setCustomValidity(messageFor(control.validity));
+      control.dataset.localizedValidation = 'true';
+    }
+  }, true);
+  const clear = (event) => {
+    const control = event.target;
+    if (control.dataset?.localizedValidation) {
+      control.setCustomValidity('');
+      delete control.dataset.localizedValidation;
+    }
+  };
+  document.addEventListener('input', clear, true);
+  document.addEventListener('change', clear, true);
+}
+localizeValidation();
+
 function brand(route = 'home') {
   return link(el('span', {}, 'Личный кабинет ТСН "МР17дом1"'), route, { class: 'brand' });
 }
