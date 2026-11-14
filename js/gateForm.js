@@ -114,3 +114,12 @@ export function gateAccessNote(row) {
     }[row.effective_status] || ''
   );
 }
+
+export function gateVehicles(row, active = true) {
+  if (Array.isArray(row?.vehicles) && row.vehicles.length)
+    return row.vehicles.filter((car) => (car.active !== false) === active);
+  return active && (row?.vehicle_plate || row?.vehicle_brand)
+    ? [{ plate_number: row.vehicle_plate || '', brand: row.vehicle_brand || '', active: true }]
+    : [];
+}
+export const gateVehicleLabel = (car) => [car.plate_number, car.brand].filter(Boolean).join(' · ');

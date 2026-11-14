@@ -182,3 +182,20 @@ select { font: inherit; }
 .gate-choice-group .field input:disabled { background: #f1f3ef; color: var(--muted); }
 
 .gate-status-rejected { background: #fde8e5; color: #a52a23; }
+
+
+.gate-car-rows {
+  display: grid;
+  gap: 16px;
+}
+.gate-car-row {
+  display: grid;
+  gap: 12px;
+}
+.gate-car-row + .gate-car-row {
+  padding-top: 16px;
+  border-top: 1px solid var(--line);
+}
+.gate-car-row .gate-heading {
+  margin: 0;
+}
