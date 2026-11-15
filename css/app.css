@@ -26,6 +26,8 @@ p { line-height: 1.5; }
 .sidebar-heading { display: flex; align-items: center; justify-content: space-between; padding: 0 6px; margin-bottom: 32px; }
 .sidebar nav { display: grid; gap: 5px; }
 .nav-link { padding: 12px 14px; border-radius: 6px; text-decoration: none; color: var(--muted); font-size: .9rem; }
+.nav-group-title { padding: 18px 14px 4px; color: var(--muted); font-size: .76rem; font-weight: 700; text-transform: uppercase; letter-spacing: .04em; }
+.nav-group-title + a.nav-link, .nav-group-title + a.nav-link + a.nav-link { padding-left: 24px; }
 .nav-link:hover { background: #f5f7f3; }
 .nav-link.active { background: #eaf0e9; color: var(--green); font-weight: 600; }
 .sidebar-user { margin-top: auto; border-top: 1px solid var(--line); padding: 18px 10px 0; display: grid; gap: 8px; }
@@ -215,6 +217,10 @@ select { font: inherit; }
   padding-top: 16px;
   border-top: 1px solid var(--line);
 }
+.gate-vehicle-add { max-width: 520px; margin: 22px 0; padding: 18px; border: 1px solid var(--line); border-radius: 10px; }
+.gate-vehicle-add h2 { margin-top: 0; font-size: 1.05rem; }
+.gate-vehicle-registry { display: grid; grid-template-columns: repeat(auto-fit, minmax(min(100%, 330px), 1fr)); gap: 14px; }
+.gate-vehicle-row { display: grid; gap: 10px; }
 .gate-car-row .gate-heading {
   margin: 0;
 }

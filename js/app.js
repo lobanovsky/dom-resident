@@ -1,4 +1,5 @@
 import { renderGateAccess } from './gate.js';
+import { renderVehicles } from './vehicles.js';
 import { api } from './api.js';
 import { el, link, button, notice, field, definitions } from './dom.js';
 import { renderReadings, clearReadingDrafts } from './readings.js';
@@ -104,10 +105,16 @@ function shell(page, data, hasMeters, defaultRoute) {
   toggle.setAttribute('aria-label', 'Открыть меню'); toggle.setAttribute('aria-controls', 'sidebar'); toggle.setAttribute('aria-expanded', 'false');
   const close = button('×', () => setOpen(false), 'menu-close'); close.setAttribute('aria-label', 'Закрыть меню');
   const backdrop = button('', () => setOpen(false), 'menu-backdrop'); backdrop.setAttribute('aria-label', 'Закрыть меню');
-  const nav = [['meters', 'Показания'], ['properties', 'Недвижимость'], ['access', 'Двор и паркинг'], ['profile', 'Профиль']].filter(([route]) => route !== 'meters' || hasMeters);
-  sidebar.append(el('div', { class: 'sidebar-heading' }, [brand(defaultRoute), close]), el('nav', {}, nav.map(([route, title]) => link(title, route, {
+  const beforeGate = [['meters', 'Показания'], ['properties', 'Недвижимость']].filter(([route]) => route !== 'meters' || hasMeters);
+  const navLink = ([route, title]) => link(title, route, {
     class: page === route ? 'nav-link active' : 'nav-link', 'aria-current': page === route ? 'page' : null, onclick: () => setOpen(false, false),
-  }))));
+  });
+  sidebar.append(el('div', { class: 'sidebar-heading' }, [brand(defaultRoute), close]), el('nav', {}, [
+    ...beforeGate.map(navLink),
+    el('div', { class: 'nav-group-title' }, 'Двор и паркинг'),
+    navLink(['access', 'Заявки']), navLink(['vehicles', 'Автомобили']),
+    navLink(['profile', 'Профиль']),
+  ]));
   const fullName = [data.person.last_name, data.person.first_name, data.person.middle_name].filter(Boolean).join(' ');
   sidebar.append(el('div', { class: 'sidebar-user' }, [el('span', { class: 'user-name', title: fullName }, [data.person.first_name, data.person.last_name].filter(Boolean).join(' ')), button('Выйти', async () => {
     try { await api('/auth/logout', { method: 'POST', body: {} }); clearReadingDrafts(); personId = null; location.hash = 'login'; }
@@ -178,10 +185,11 @@ async function render() {
     const [properties, meters, windows] = await Promise.all([api('/properties'), api('/meters'), api('/windows')]);
     if (id !== generation) return;
     const defaultPage = meters.some((m) => m.active) ? 'meters' : 'properties';
-    const page = ['meters', 'properties', 'profile', 'access'].includes(requested) ? requested : defaultPage;
+    const page = ['meters', 'properties', 'profile', 'access', 'vehicles'].includes(requested) ? requested : defaultPage;
     if (requested === 'home') history.replaceState(null, '', `#${page}`);
     const main = shell(page, me, meters.length > 0, defaultPage);
     if (page === 'access') await renderGateAccess(main, me, shellEvents.signal);
+    else if (page === 'vehicles') await renderVehicles(main);
     else if (page === 'profile') renderProfile(main, me);
     else if (page === 'properties') renderProperties(main, properties, meters);
     else await renderReadings(main, properties, meters, windows, new URLSearchParams(route.split('?')[1]).get('premises'));

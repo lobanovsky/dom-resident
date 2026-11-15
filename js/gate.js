@@ -181,7 +181,10 @@ export async function renderGateAccess(main, me, signal) {
     ]);
   }
 
-  function openEdit(original) {
+  async function openEdit(original) {
+    let vehicles;
+    try { vehicles = (await api('/gate-access/vehicles')).items; }
+    catch (error) { list.prepend(notice(errorMessage(error))); return; }
     const name = field('Имя получателя доступа', 'recipient_name', {
       required: true,
       maxlength: 120,
@@ -197,38 +200,24 @@ export async function renderGateAccess(main, me, signal) {
     ));
     const relationField = el('label', { class: 'field' }, [el('span', {}, 'Кто будет пользоваться?'), relation]);
     const noCar = el('input', { type: 'checkbox', checked: !!original.no_personal_vehicle });
+    const selected = new Set(gateVehicles(original).map((car) => car.id).filter(Boolean));
     const carHost = el('div', { class: 'gate-car-rows' });
-    const carRows = [];
     const message = el('div', { 'aria-live': 'polite' });
     const submit = el('button', { type: 'submit', class: 'button' }, 'Сохранить');
     let modal;
-    const updateCars = () => {
-      for (const row of carRows) {
-        row.plate.disabled = noCar.checked;
-        row.brand.disabled = noCar.checked;
-        row.remove.disabled = noCar.checked;
-        row.remove.hidden = carRows.length === 1;
-      }
-      addCar.disabled = noCar.checked || carRows.length >= 10;
+    const drawVehicles = () => {
+      carHost.replaceChildren(...vehicles.map((car) => {
+        const control = el('input', { type: 'checkbox', value: car.id, checked: selected.has(car.id), disabled: noCar.checked });
+        control.addEventListener('change', () => {
+          if (control.checked && selected.size >= 10) { control.checked = false; message.replaceChildren(notice('Можно выбрать не более 10 автомобилей.')); return; }
+          control.checked ? selected.add(car.id) : selected.delete(car.id);
+        });
+        return el('label', { class: 'gate-choice' }, [control, el('span', {}, gateVehicleLabel(car))]);
+      }));
+      if (!vehicles.length) carHost.append(el('p', { class: 'muted' }, 'В реестре нет автомобилей.'));
     };
-    const addVehicle = (vehicle = {}) => {
-      const plate = field('Номер автомобиля', 'vehicle_plate', { maxlength: 24, value: vehicle.plate_number || '' });
-      const brand = field('Марка автомобиля', 'vehicle_brand', { maxlength: 80, value: vehicle.brand || '' });
-      let node;
-      const remove = button('Удалить автомобиль', () => {
-        carRows.splice(carRows.findIndex((row) => row.node === node), 1);
-        node.remove();
-        updateCars();
-      }, 'text-button');
-      node = el('div', { class: 'gate-car-row' }, [plate.node, brand.node, remove]);
-      carRows.push({ node, plate: plate.control, brand: brand.control, remove });
-      carHost.append(node);
-      updateCars();
-    };
-    const addCar = button('Добавить автомобиль', () => addVehicle(), 'text-button');
-    const currentVehicles = gateVehicles(original);
-    for (const vehicle of currentVehicles.length ? currentVehicles : [{}]) addVehicle(vehicle);
-    noCar.addEventListener('change', updateCars);
+    drawVehicles();
+    noCar.addEventListener('change', () => drawVehicles());
     const form = el('form', { class: 'form', onsubmit: async (event) => {
       event.preventDefault();
       if (!form.reportValidity()) return;
@@ -240,10 +229,7 @@ export async function renderGateAccess(main, me, signal) {
           body: {
             recipient_name: name.control.value.trim(),
             relation: relation.value,
-            vehicles: noCar.checked ? [] : carRows.map((row) => ({
-              plate_number: row.plate.value.trim(),
-              brand: row.brand.value.trim(),
-            })).filter((vehicle) => vehicle.plate_number || vehicle.brand),
+            vehicle_ids: noCar.checked ? [] : [...selected],
             no_personal_vehicle: noCar.checked,
           },
         });
@@ -262,7 +248,6 @@ export async function renderGateAccess(main, me, signal) {
       el('fieldset', { class: 'gate-choice-group' }, [
         el('legend', {}, 'Автомобили'),
         carHost,
-        addCar,
         el('label', { class: 'gate-choice' }, [noCar, el('span', {}, 'Нет личного автомобиля')]),
       ]),
       message,
@@ -279,8 +264,11 @@ export async function renderGateAccess(main, me, signal) {
     trackForm(form);
   }
 
-  function openCreate(original = null) {
+  async function openCreate(original = null) {
     if (!properties.length) return;
+    let registry;
+    try { registry = (await api('/gate-access/vehicles')).items; }
+    catch (e) { error.replaceChildren(notice(errorMessage(e))); return; }
     const selected = new Set(
       original?.items?.map((r) => r.premises_id) ||
         (original ? [original.premises_id] : properties.length === 1 ? [properties[0].id] : []),
@@ -337,54 +325,39 @@ export async function renderGateAccess(main, me, signal) {
       checked: original?.no_personal_vehicle || false,
     });
     const carHost = el('div', { class: 'gate-car-rows' });
-    const carRows = [];
-    const updateCars = () => {
-      carRows.forEach((row, index) => {
-        row.title.textContent = carRows.length > 1 ? `Автомобиль ${index + 1}` : '';
-        row.remove.hidden = carRows.length === 1;
-        row.plate.control.disabled = noCar.checked;
-        row.brand.control.disabled = noCar.checked;
-        row.remove.disabled = noCar.checked;
-      });
-      addCarButton.disabled = noCar.checked || carRows.length >= 10;
+    const selectedCars = new Set(gateVehicles(original).map((car) => car.id).filter(Boolean));
+    const drawCars = () => {
+      carHost.replaceChildren(...registry.map((car) => {
+        const control = el('input', { type: 'checkbox', value: car.id, checked: selectedCars.has(car.id), disabled: noCar.checked });
+        control.addEventListener('change', () => {
+          if (control.checked && selectedCars.size >= 10) { control.checked = false; message.replaceChildren(notice('Можно выбрать не более 10 автомобилей.')); return; }
+          control.checked ? selectedCars.add(car.id) : selectedCars.delete(car.id);
+        });
+        return el('label', { class: 'gate-choice' }, [control, el('span', {}, gateVehicleLabel(car))]);
+      }));
+      if (!registry.length) carHost.append(el('p', { class: 'muted' }, 'В реестре пока нет автомобилей.'));
     };
-    const addCar = (value = {}) => {
-      const plate = field('Номер автомобиля', 'vehicle_plate', { maxlength: 24, value: value.plate_number || '' });
-      const brand = field('Марка автомобиля', 'vehicle_brand', { maxlength: 80, value: value.brand || '' });
-      const title = el('strong');
-      let row;
-      const remove = button(
-        'Удалить автомобиль',
-        () => {
-          const index = carRows.indexOf(row);
-          carRows.splice(index, 1);
-          row.node.remove();
-          updateCars();
-        },
-        'text-button',
-      );
-      row = {
-        plate,
-        brand,
-        title,
-        remove,
-        node: el('div', { class: 'gate-car-row' }, [
-          el('div', { class: 'gate-heading' }, [title, remove]),
-          plate.node,
-          brand.node,
-        ]),
-      };
-      carRows.push(row);
-      carHost.append(row.node);
-      updateCars();
-    };
-    const addCarButton = button('Добавить автомобиль', () => addCar(), 'text-button');
-    const existingCars = gateVehicles(original);
-    for (const value of existingCars.length ? existingCars : [{}]) addCar(value);
-    noCar.addEventListener('change', updateCars);
+    drawCars();
+    noCar.addEventListener('change', drawCars);
+    const newPlate = field('Государственный номер', 'new_vehicle_plate', { required: true, maxlength: 24, placeholder: 'а123аа777' });
+    const newBrand = field('Марка автомобиля', 'new_vehicle_brand', { maxlength: 80 });
+    const addCarButton = button('Добавить в реестр', async () => {
+      if (!newPlate.control.reportValidity()) return;
+      addCarButton.disabled = true;
+      try {
+        const car = await api('/gate-access/vehicles', { method: 'POST', body: { plate_number: newPlate.control.value.trim(), brand: newBrand.control.value.trim() } });
+        registry.push(car);
+        selectedCars.add(car.id);
+        newPlate.control.value = ''; newBrand.control.value = '';
+        drawCars();
+      } catch (e) { message.replaceChildren(notice(errorMessage(e))); }
+      finally { addCarButton.disabled = false; }
+    }, 'text-button');
     const car = el('fieldset', { class: 'gate-choice-group' }, [
       el('legend', {}, 'Автомобили'),
       carHost,
+      newPlate.node,
+      newBrand.node,
       addCarButton,
       el('label', { class: 'gate-choice' }, [noCar, el('span', {}, 'Нет личного автомобиля')]),
     ]);
@@ -426,14 +399,7 @@ export async function renderGateAccess(main, me, signal) {
                 phone: phone.control.value.trim(),
                 recipient_name: name.control.value.trim(),
                 relation: form.querySelector('input[name=relation]:checked').value,
-                vehicles: noCar.checked
-                  ? []
-                  : carRows
-                      .map((row) => ({
-                        plate_number: row.plate.control.value.trim(),
-                        brand: row.brand.control.value.trim(),
-                      }))
-                      .filter((row) => row.plate_number || row.brand),
+                vehicle_ids: noCar.checked ? [] : [...selectedCars],
                 no_personal_vehicle: noCar.checked,
                 comment: comment.control.value.trim(),
               },
