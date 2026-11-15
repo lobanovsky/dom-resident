@@ -44,13 +44,13 @@ export async function renderVehicles(main) {
         await load();
       } catch (error) { message.replaceChildren(notice(errorMessage(error))); save.disabled = false; }
     }, 'text-button');
-    const archive = button('Убрать из реестра', async () => {
-      if (!confirm(`Убрать автомобиль ${car.plate_number} из реестра? Связанные заявки сохранят историю.`)) return;
-      archive.disabled = true;
+    const remove = button('Удалить автомобиль', async () => {
+      if (!confirm(`Удалить автомобиль ${car.plate_number} из реестра и связанных заявок?`)) return;
+      remove.disabled = true;
       try { await api(`/gate-access/vehicles/${car.id}`, { method: 'DELETE' }); await load(); }
-      catch (error) { message.replaceChildren(notice(errorMessage(error))); archive.disabled = false; }
+      catch (error) { message.replaceChildren(notice(errorMessage(error))); remove.disabled = false; }
     }, 'text-button');
-    return el('form', { class: 'property-card gate-vehicle-row', onsubmit: (event) => event.preventDefault() }, [plateInput.node, brandInput.node, message, el('div', { class: 'gate-actions' }, [save, archive])]);
+    return el('form', { class: 'property-card gate-vehicle-row', onsubmit: (event) => event.preventDefault() }, [plateInput.node, brandInput.node, message, el('div', { class: 'gate-actions' }, [save, remove])]);
   }
   await load();
 }

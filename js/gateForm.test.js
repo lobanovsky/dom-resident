@@ -77,20 +77,18 @@ test('заявки собственников идут первыми, сохр�
 });
 
 import { gateVehicles, gateVehicleLabel } from './gateForm.js';
-test('все действующие автомобили показаны, снятые с использования остаются в архиве', () => {
+test('заявки показывают автомобили из реестра без архивного статуса', () => {
   const row = {
     vehicles: [
-      { plate_number: 'А123АА77', brand: 'Toyota', active: true },
-      { plate_number: 'В456ВВ77', brand: 'Kia', active: true },
-      { plate_number: 'С789СС77', brand: 'Ford', active: false },
+      { plate_number: 'А123АА77', brand: 'Toyota' },
+      { plate_number: 'В456ВВ77', brand: 'Kia' },
     ],
   };
   assert.equal(gateVehicles(row).length, 2);
   assert.equal(gateVehicleLabel(gateVehicles(row)[1]), 'В456ВВ77 · Kia');
-  assert.equal(gateVehicles(row, false)[0].brand, 'Ford');
   assert.equal(gateVehicles({ vehicle_plate: 'А123АА77', vehicle_brand: 'Toyota' }).length, 1);
   assert.deepEqual(
-    gateVehicles({ vehicles: [{ plate_number: 'С789СС77', active: false }], vehicle_plate: 'С789СС77' }),
-    [],
+    gateVehicles({ vehicles: [{ plate_number: 'С789СС77' }] }),
+    [{ plate_number: 'С789СС77' }],
   );
 });

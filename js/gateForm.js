@@ -125,10 +125,9 @@ export function gateAccessNote(row) {
   );
 }
 
-export function gateVehicles(row, active = true) {
-  if (Array.isArray(row?.vehicles) && row.vehicles.length)
-    return row.vehicles.filter((car) => (car.active !== false) === active);
-  return active && (row?.vehicle_plate || row?.vehicle_brand)
+export function gateVehicles(row) {
+  if (Array.isArray(row?.vehicles)) return row.vehicles;
+  return row?.vehicle_plate || row?.vehicle_brand
     ? [{ plate_number: row.vehicle_plate || '', brand: row.vehicle_brand || '', active: true }]
     : [];
 }

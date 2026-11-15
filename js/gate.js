@@ -170,12 +170,6 @@ export async function renderGateAccess(main, me, signal) {
           ['Срок', r.valid_until ? `до ${date(r.valid_until)} включительно` : null],
         ]),
       ]),
-      gateVehicles(r, false).length
-        ? el('details', {}, [
-            el('summary', {}, 'Архив автомобилей'),
-            el('p', { class: 'muted' }, gateVehicles(r, false).map(gateVehicleLabel).join('; ')),
-          ])
-        : null,
       message,
       el('div', { class: 'gate-actions' }, actions),
     ]);
