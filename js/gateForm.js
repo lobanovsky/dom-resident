@@ -17,7 +17,9 @@ export function groupGateRequests(rows) {
       active,
       display_status: active
         ? 'approved'
-        : items.every((r) => (r.status || r.effective_status) === 'pending')
+        : items.every((r) => (r.status || r.effective_status) === 'revoke_requested')
+          ? 'revoke_requested'
+          : items.every((r) => (r.status || r.effective_status) === 'pending')
           ? 'pending'
           : 'rejected',
       eligible: items.every((r) => r.eligible),

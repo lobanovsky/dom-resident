@@ -16,6 +16,7 @@ import { trackForm, markFormSaved } from './formState.js';
 export const gateStatuses = {
   pending: 'На проверке',
   approved: 'Одобрено',
+  revoke_requested: 'Ожидает удаления с устройства',
   rejected: 'Отклонено',
 };
 export const gateRelations = {
