@@ -122,9 +122,10 @@ export async function renderGateAccess(main, me, signal) {
   function card(r, zone) {
     const message = el('div', { 'aria-live': 'polite' });
     const actions = [];
-    for (const [action, label] of r.status === 'pending'
+    const canManage = Number(r.person_id) === Number(me.person.id);
+    for (const [action, label] of canManage && r.status === 'pending'
       ? [['cancel', 'Отменить заявку']]
-      : r.status === 'approved'
+      : canManage && r.status === 'approved'
         ? [['revoke', 'Отозвать доступ']]
         : []) {
       const control = button(
@@ -145,9 +146,9 @@ export async function renderGateAccess(main, me, signal) {
       );
       actions.push(control);
     }
-    if (r.display_status === 'rejected')
+    if (canManage && r.display_status === 'rejected')
       actions.push(button('Новая заявка на основе этой', () => openCreate(r), 'text-button'));
-    else if (['pending', 'approved'].includes(r.display_status))
+    else if (canManage && ['pending', 'approved'].includes(r.display_status))
       actions.unshift(button('Изменить данные', () => openEdit(r), 'text-button'));
     const relation = gateRelations[r.relation === 'service' ? 'guest' : r.relation];
     const items = r.items.filter((item) => item.zone === zone);
