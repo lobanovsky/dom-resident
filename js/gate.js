@@ -47,9 +47,14 @@ export async function renderGateAccess(main, me, signal) {
   create.disabled = true;
   const refresh = button(
     'Обновить список',
-    () => {
+    async () => {
       offset = 0;
-      load();
+      refresh.disabled = true;
+      refresh.textContent = 'Обновляем…';
+      const loaded = await load();
+      if (loaded && properties.length) error.replaceChildren(notice('Список обновлён.', true));
+      refresh.disabled = false;
+      refresh.textContent = 'Обновить список';
     },
     'text-button',
   );
@@ -85,7 +90,8 @@ export async function renderGateAccess(main, me, signal) {
         `/gate-access?limit=50&offset=${offset}${includeRejected.checked ? '&include_rejected=true' : ''}`,
       );
       const items = groupGateRequests(result.items);
-      if (request !== version || !main.isConnected) return;
+      if (request !== version || !main.isConnected) return false;
+      if (properties.length) error.replaceChildren();
       if (!append) loadedGroups = [];
       loadedGroups.push(...items);
       const ordered = ownersFirst(rejectedLast(loadedGroups));
@@ -97,8 +103,10 @@ export async function renderGateAccess(main, me, signal) {
       ].filter(Boolean);
       list.replaceChildren(...(sections.length ? sections : [el('p', { class: 'empty-state' }, 'Заявок пока нет.')]));
       more.hidden = items.length < 50;
+      return true;
     } catch (e) {
       error.replaceChildren(notice(errorMessage(e)));
+      return false;
     } finally {
       more.disabled = false;
     }
