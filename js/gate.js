@@ -25,8 +25,11 @@ export const gateRelations = {
   tenant: 'Арендатор',
   guest: 'Гость',
 };
-export const gatePropertyLabel = (p) =>
-  `${{ parking_space: 'Машиноместо', commercial: 'Коммерческое помещение' }[p.kind || p.premises_kind] || 'Квартира'} ${p.number || p.premises_number}`;
+export const gatePropertyLabel = (p) => {
+  const kind = p.kind || p.premises_kind;
+  const label = `${{ parking_space: 'Машиноместо', commercial: 'Коммерческое помещение' }[kind] || 'Квартира'} ${p.number || p.premises_number}`;
+  return `${label} (${kind === 'parking_space' ? 'Паркинг' : 'Двор'})`;
+};
 const phoneText = (value) => (/^7\d{10}$/.test(value) ? formatGatePhone(value) : `+${value}`);
 const statusLabel = (value) => gateStatuses[value];
 export async function renderGateAccess(main, me, signal) {
