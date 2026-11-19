@@ -89,6 +89,7 @@ async function propertyReadings(property, allMeters, window) {
       ownEditable ||= !!current?.editable;
       const editable = windowOpen(window) && (!current || (state.editing && current.editable));
       const row = el('div', { class: 'meter-row', 'data-meter-id': meter.id }, meterHeading(meter));
+      if (meter.manual_reading_required) row.append(el('p', { class: 'inline-warning manual-reading-notice' }, 'Показания этого счётчика не поступают автоматически. Передавайте их вручную каждый месяц.'));
       if (meter.verification_overdue) row.append(el('p', { class: 'inline-warning' }, 'Срок поверки истёк. Обратитесь в ТСЖ.'));
       if (editable) {
         let draft = state.values.get(meter.id);
