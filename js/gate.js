@@ -300,13 +300,13 @@ export async function renderGateAccess(main, me, signal) {
       maxlength: 16,
       inputmode: 'numeric',
       pattern: '[+]7 [0-9]{3} [0-9]{3} [0-9]{2} [0-9]{2}',
-      value: original?.phone || me.person.phones?.[0] || '',
+      value: original?.phone || '',
       placeholder: '+7 926 793 63 63',
     });
     const name = field('Имя получателя доступа', 'recipient_name', {
       required: true,
       maxlength: 120,
-      value: original?.recipient_name || [me.person.first_name, me.person.last_name].filter(Boolean).join(' '),
+      value: original?.recipient_name || '',
     });
     bindGatePhone(phone.control);
     const relationValue = original?.relation === 'service' ? 'guest' : original?.relation || 'owner';
