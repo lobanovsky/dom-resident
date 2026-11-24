@@ -359,6 +359,14 @@ export async function renderGateAccess(main, me, signal) {
       } catch (e) { message.replaceChildren(notice(errorMessage(e))); }
       finally { addCarButton.disabled = false; }
     }, 'text-button');
+    const syncCarFields = () => {
+      newPlate.control.required = !noCar.checked;
+      newPlate.control.disabled = noCar.checked;
+      newBrand.control.disabled = noCar.checked;
+      addCarButton.disabled = noCar.checked;
+    };
+    noCar.addEventListener('change', syncCarFields);
+    syncCarFields();
     const car = el('fieldset', { class: 'gate-choice-group' }, [
       el('legend', {}, 'Автомобили'),
       carHost,
