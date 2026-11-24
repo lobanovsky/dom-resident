@@ -76,6 +76,7 @@ const messages = {
   'invalid or expired link': 'Ссылка недействительна или срок её действия истёк. Запросите новую.',
   'reading window is closed': 'Приём показаний закрыт. Обратитесь в УК/ТСЖ.',
   'reading already submitted; contact management': 'Показания уже внесены другим собственником или сотрудником. Для исправления обратитесь в УК/ТСЖ.',
+  'broken meter cannot accept resident readings; contact management': 'Счётчик неисправен. Передача показаний недоступна. Обратитесь в ТСН для замены счётчика.',
   'reading changed; refresh and try again': 'Показания изменились. Обновите страницу и проверьте значения.',
   'email delivery is not configured; contact management': 'Регистрация по почте пока недоступна. Обратитесь в УК/ТСЖ.',
   'too many attempts; try later': 'Слишком много попыток. Повторите через 15 минут.',

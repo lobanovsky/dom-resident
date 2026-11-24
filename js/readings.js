@@ -87,9 +87,10 @@ async function propertyReadings(property, allMeters, window) {
       const previous = previousValues(meter, rows, window?.period || '9999-01-01');
       if (current) accepted++;
       ownEditable ||= !!current?.editable;
-      const editable = windowOpen(window) && (!current || (state.editing && current.editable));
+      const editable = !meter.broken && windowOpen(window) && (!current || (state.editing && current.editable));
       const row = el('div', { class: 'meter-row', 'data-meter-id': meter.id }, meterHeading(meter));
-      if (meter.manual_reading_required) row.append(el('p', { class: 'inline-warning manual-reading-notice' }, 'Показания этого счётчика не поступают автоматически. Передавайте их вручную каждый месяц.'));
+      if (meter.broken) row.append(el('p', { class: 'inline-warning broken-meter-notice' }, 'Счётчик неисправен. Передача показаний недоступна. Обратитесь в ТСН для замены счётчика.'));
+      else if (meter.manual_reading_required) row.append(el('p', { class: 'inline-warning manual-reading-notice' }, 'Показания этого счётчика не поступают автоматически. Передавайте их вручную каждый месяц.'));
       if (meter.verification_overdue) row.append(el('p', { class: 'inline-warning' }, 'Срок поверки истёк. Обратитесь в ТСЖ.'));
       if (editable) {
         let draft = state.values.get(meter.id);
@@ -124,7 +125,15 @@ async function propertyReadings(property, allMeters, window) {
       } else {
         const record = current || rows[0];
         const fallback = Object.fromEntries([1, 2, 3].map((i) => [`t${i}`, meter[`initial_t${i}`]]));
-        row.append(el('p', { class: 'reading-value' }, `${valuesText(meter, record || fallback)} ${unit(meter.resource)}`));
+        const defaultsConfigured = [1, 2, 3].slice(0, meter.tariffs).every((i) => meter[`default_t${i}`] !== null && meter[`default_t${i}`] !== undefined);
+        const projected = meter.broken && !current && window && defaultsConfigured
+          ? Object.fromEntries(previous.map((value, i) => [`t${i + 1}`, value + Number(meter[`default_t${i + 1}`])]))
+          : null;
+        if (meter.broken && projected) {
+          row.append(el('p', { class: 'reading-value' }, `Расчётное показание за ${month(window.period)}: ${valuesText(meter, projected)} ${unit(meter.resource)}`));
+        } else {
+          row.append(el('p', { class: 'reading-value' }, `${valuesText(meter, record || fallback)} ${unit(meter.resource)}`));
+        }
         if (rows.length) {
           const recent = el('div', { class: 'recent-consumption' }, [el('strong', {}, 'Потребление за последние месяцы')]);
           for (const r of rows.slice(0, 3)) {
@@ -138,6 +147,10 @@ async function propertyReadings(property, allMeters, window) {
         if (current) {
           row.append(el('span', { class: 'accepted' }, `Принято · ${dateTime(current.updated_at)}`));
           if (current.comment) row.append(el('p', { class: 'reading-comment' }, current.comment));
+        } else if (meter.broken && !defaultsConfigured) {
+          row.append(el('small', { class: 'muted' }, 'Средний расход по умолчанию не задан. Обратитесь в ТСН.'));
+        } else if (meter.broken && projected) {
+          row.append(el('small', { class: 'muted' }, 'Значение будет автоматически записано с 20-го числа месяца.'));
         } else row.append(el('small', { class: 'muted' }, record ? `Последнее показание: ${date(record.reading_date)}` : 'Начальное показание'));
       }
       row.append(history(meter, rows)); form.append(row);
