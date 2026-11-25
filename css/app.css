@@ -30,6 +30,8 @@ p { line-height: 1.5; }
 .nav-group-title + a.nav-link, .nav-group-title + a.nav-link + a.nav-link { padding-left: 24px; }
 .nav-link:hover { background: #f5f7f3; }
 .nav-link.active { background: #eaf0e9; color: var(--green); font-weight: 600; }
+.nav-link-debt { color: #9b3028; }
+.nav-link-debt.active { color: #8d2822; background: #fff0ed; }
 .sidebar-user { margin-top: auto; border-top: 1px solid var(--line); padding: 18px 10px 0; display: grid; gap: 8px; }
 .user-name { font-size: .85rem; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .logout { justify-self: start; color: var(--muted) !important; }
@@ -107,6 +109,22 @@ summary { cursor: pointer; min-height: 30px; font-size: .85rem; padding: 4px 0; 
 .archive-details .meter-row:last-child { border-bottom: 0; }
 .back-link { display: inline-block; margin-bottom: 20px; font-size: .85rem; }
 .empty-state { color: var(--muted); padding: 28px 0; }
+.debt-summary, .debt-report-empty { margin-bottom: 24px; padding: 20px 22px; border: 1px solid #e4c5c1; border-left: 5px solid #b33b32; border-radius: 9px; background: #fff8f6; }
+.debt-summary:not(.has-debt) { border-color: #c8dcc7; border-left-color: #49835a; background: #f4faf3; }
+.debt-period { margin: 0 0 8px; color: var(--muted); font-size: .86rem; }
+.debt-total { margin: 0; color: #a52f27; font-size: clamp(1.8rem, 5vw, 2.5rem); font-weight: 700; line-height: 1.2; }
+.debt-summary:not(.has-debt) .debt-total { color: #315b35; }
+.debt-caption { margin: 5px 0 0; font-size: .92rem; }
+.debt-list-title { margin: 26px 0 12px; }
+.debt-list { display: grid; gap: 10px; }
+.debt-item { display: flex; justify-content: space-between; align-items: center; gap: 18px; padding: 16px 18px; border: 1px solid var(--line); border-radius: 8px; background: #fff; }
+.debt-item strong { font-size: .94rem; }
+.debt-address, .debt-account { display: block; margin: 5px 0 0; color: var(--muted); font-size: .82rem; }
+.debt-item-amount { flex: 0 0 auto; color: #a52f27; white-space: nowrap; }
+.debt-report-empty h2 { margin: 0 0 8px; }
+.debt-report-empty p { margin: 0; }
+.debt-note { margin-top: 18px; color: var(--muted); font-size: .82rem; }
+@media (max-width: 760px) { .debt-item { align-items: flex-start; flex-direction: column; gap: 10px; } }
 .loading { text-align: center; padding: 80px 20px; color: var(--muted); }
 .auth-layout { min-height: 100vh; display: grid; place-items: center; padding: 28px 20px; }
 .auth-card { width: min(100%, 410px); padding: 30px; border: 1px solid var(--line); border-radius: 10px; background: #fff; }

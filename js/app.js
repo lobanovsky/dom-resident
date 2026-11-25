@@ -6,6 +6,7 @@ import { renderReadings, clearReadingDrafts } from './readings.js';
 import { number, date, propertyMeters, errorMessage } from './lib.js';
 import { trackForm, markFormSaved } from './formState.js';
 import { updateControl } from './updateControl.js';
+import { renderDebts } from './debts.js';
 
 const root = document.querySelector('#app');
 let generation = 0;
@@ -107,9 +108,11 @@ function shell(page, data, hasMeters, defaultRoute) {
   const backdrop = button('', () => setOpen(false), 'menu-backdrop'); backdrop.setAttribute('aria-label', 'Закрыть меню');
   const beforeGate = [['meters', 'Показания'], ['properties', 'Недвижимость']].filter(([route]) => route !== 'meters' || hasMeters);
   const navLink = ([route, title]) => link(title, route, {
-    class: page === route ? 'nav-link active' : 'nav-link', 'aria-current': page === route ? 'page' : null, onclick: () => setOpen(false, false),
+    class: `${route === 'debts' ? 'nav-link nav-link-debt' : 'nav-link'}${page === route ? ' active' : ''}`, 'aria-current': page === route ? 'page' : null, onclick: () => setOpen(false, false),
   });
   sidebar.append(el('div', { class: 'sidebar-heading' }, [brand(defaultRoute), close]), el('nav', {}, [
+    el('div', { class: 'nav-group-title' }, 'Финансы'),
+    navLink(['debts', 'Задолженность']),
     ...beforeGate.map(navLink),
     el('div', { class: 'nav-group-title' }, 'Двор и паркинг'),
     navLink(['access', 'Заявки']), navLink(['vehicles', 'Автомобили']),
@@ -182,13 +185,14 @@ async function render() {
   try {
     const me = await api('/me'); if (id !== generation) return;
     if (personId !== me.person.id) { clearReadingDrafts(); personId = me.person.id; }
-    const [properties, meters, windows] = await Promise.all([api('/properties'), api('/meters'), api('/windows')]);
+    const [properties, meters, windows, debts] = await Promise.all([api('/properties'), api('/meters'), api('/windows'), api('/debts')]);
     if (id !== generation) return;
-    const defaultPage = meters.some((m) => m.active) ? 'meters' : 'properties';
-    const page = ['meters', 'properties', 'profile', 'access', 'vehicles'].includes(requested) ? requested : defaultPage;
+    const defaultPage = 'debts';
+    const page = ['debts', 'meters', 'properties', 'profile', 'access', 'vehicles'].includes(requested) ? requested : defaultPage;
     if (requested === 'home') history.replaceState(null, '', `#${page}`);
     const main = shell(page, me, meters.length > 0, defaultPage);
-    if (page === 'access') await renderGateAccess(main, me, shellEvents.signal);
+    if (page === 'debts') renderDebts(main, debts);
+    else if (page === 'access') await renderGateAccess(main, me, shellEvents.signal);
     else if (page === 'vehicles') await renderVehicles(main);
     else if (page === 'profile') renderProfile(main, me);
     else if (page === 'properties') renderProperties(main, properties, meters);
